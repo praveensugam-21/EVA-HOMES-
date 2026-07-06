@@ -1,0 +1,39 @@
+# ============================================================
+# EVA Homes — Backend Python Dependencies
+# ============================================================
+# Install all of these with:  pip install -r requirements.txt
+# ============================================================
+
+# FastAPI — the web framework we use to build our API
+fastapi==0.115.0
+
+# Uvicorn — the server that RUNS our FastAPI app
+# Think of it as the engine that starts our backend
+uvicorn[standard]==0.30.6
+
+# SQLAlchemy — the ORM (Object Relational Mapper)
+# Lets us write Python classes instead of raw SQL queries
+sqlalchemy==2.0.35
+
+# Pydantic — data validation library
+# Ensures incoming request data is correct shape/type
+pydantic[email]==2.9.2
+pydantic-settings==2.5.2
+
+# Passlib + bcrypt — for hashing passwords securely
+# NEVER store plain text passwords — always hash them!
+passlib==1.7.4
+bcrypt==4.0.1
+
+# Python-Jose — for creating and verifying JWT tokens
+# JWT = JSON Web Token — how we keep users "logged in"
+python-jose[cryptography]==3.3.0
+
+# Python-multipart — needed for form data (login forms)
+python-multipart==0.0.9
+
+# Python-dotenv — loads our .env config file
+python-dotenv==1.0.1
+
+# AIOFILES — for async file operations (image uploads later)
+aiofiles==24.1.0

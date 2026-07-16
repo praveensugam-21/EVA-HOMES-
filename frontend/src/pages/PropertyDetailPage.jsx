@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaBed, FaBath, FaRulerCombined, FaMapMarkerAlt, FaCheckCircle, FaSpinner } from "react-icons/fa";
+import { FaBed, FaBath, FaRulerCombined, FaMapMarkerAlt, FaCheckCircle, FaSpinner, FaCar, FaMap } from "react-icons/fa";
 import { propertiesAPI, enquiriesAPI } from "../api/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -11,6 +11,7 @@ export default function PropertyDetailPage() {
 
   const [property, setProperty] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [activePhoto, setActivePhoto] = useState("");
   const [enquiry, setEnquiry] = useState({ name: "", email: "", phone: "", message: "I am interested in this property and would like to schedule a visit." });
   const [enquiryStatus, setEnquiryStatus] = useState(""); // "success" | "error" | ""
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,6 +22,7 @@ export default function PropertyDetailPage() {
       try {
         const data = await propertiesAPI.getById(id);
         setProperty(data);
+        setActivePhoto(data.thumbnail_url);
       } catch (err) {
         if (err.response?.status === 404) navigate("/listings");
       } finally {
@@ -57,6 +59,27 @@ export default function PropertyDetailPage() {
 
   if (!property) return null;
 
+  // Build the list of photos for the gallery picker
+  const galleryPhotos = [
+    { url: property.thumbnail_url, label: "Exterior (Main)" },
+    { url: property.hall_image_url, label: "Living / Hall" },
+    { url: property.kitchen_image_url, label: "Kitchen" },
+    { url: property.bathroom_image_url, label: "Bathroom" }
+  ];
+
+  if (property.has_parking && property.parking_image_url) {
+    galleryPhotos.push({ url: property.parking_image_url, label: "Parking" });
+  }
+
+  if (property.images?.length > 0) {
+    property.images.forEach((img, i) => {
+      galleryPhotos.push({
+        url: img.url,
+        label: img.caption || `View ${i + 1}`
+      });
+    });
+  }
+
   return (
     <div className="min-h-screen bg-white">
       <Navbar />
@@ -82,23 +105,34 @@ export default function PropertyDetailPage() {
 
         <div className="grid lg:grid-cols-3 gap-8">
           <div className="lg:col-span-2 space-y-6">
-            <div className="rounded-xl overflow-hidden h-80 md:h-[420px] bg-zinc-50 border border-zinc-100">
-              <img
-                src={property.thumbnail_url || `https://picsum.photos/800/500?random=${property.id}`}
-                alt={property.title}
-                className="w-full h-full object-cover"
-              />
-            </div>
+            {/* Interactive Main Photo Gallery */}
+            <div className="space-y-3">
+              <div className="rounded-xl overflow-hidden h-80 md:h-[450px] bg-zinc-50 border border-zinc-150 relative shadow-sm">
+                <img
+                  src={activePhoto || property.thumbnail_url}
+                  alt={property.title}
+                  className="w-full h-full object-cover transition-all duration-300"
+                />
+              </div>
 
-            {property.images?.length > 0 && (
-              <div className="grid grid-cols-3 gap-3">
-                {property.images.slice(0, 3).map((img) => (
-                  <div key={img.id} className="rounded-lg overflow-hidden h-24 border border-zinc-100 bg-zinc-55">
-                    <img src={img.url} alt={img.caption || "Property image"} className="w-full h-full object-cover" />
-                  </div>
+              {/* Thumbnail List */}
+              <div className="grid grid-cols-4 sm:grid-cols-5 md:grid-cols-6 gap-3">
+                {galleryPhotos.map((photo, i) => (
+                  <button
+                    key={i}
+                    onClick={() => setActivePhoto(photo.url)}
+                    className={`rounded-lg overflow-hidden h-20 border-2 transition relative ${
+                      activePhoto === photo.url ? "border-zinc-900 scale-95 shadow-sm" : "border-zinc-200 hover:border-zinc-450"
+                    }`}
+                  >
+                    <img src={photo.url} alt={photo.label} className="w-full h-full object-cover" />
+                    <div className="absolute inset-x-0 bottom-0 bg-black/60 text-white text-[8px] font-medium py-0.5 text-center truncate px-1">
+                      {photo.label}
+                    </div>
+                  </button>
                 ))}
               </div>
-            )}
+            </div>
 
             <div className="bg-white rounded-xl p-6 border border-zinc-100 shadow-sm flex items-center justify-between">
               <div>
@@ -110,7 +144,7 @@ export default function PropertyDetailPage() {
 
             <div className="bg-white rounded-xl p-6 border border-zinc-100 shadow-sm">
               <h2 className="text-lg font-bold text-zinc-900 mb-4">Property Specifications</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 {property.bedrooms && (
                   <div className="flex items-center gap-3 p-4 bg-zinc-50 rounded-lg">
                     <FaBed className="text-zinc-550 text-lg" />
@@ -138,6 +172,13 @@ export default function PropertyDetailPage() {
                     </div>
                   </div>
                 )}
+                <div className="flex items-center gap-3 p-4 bg-zinc-50 rounded-lg">
+                  <FaCar className="text-zinc-550 text-lg" />
+                  <div>
+                    <p className="text-[10px] uppercase font-bold tracking-wider text-zinc-400">Parking</p>
+                    <p className="font-bold text-sm text-zinc-900">{property.has_parking ? "Available" : "Not Available"}</p>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -145,6 +186,37 @@ export default function PropertyDetailPage() {
               <div className="bg-white rounded-xl p-6 border border-zinc-100 shadow-sm">
                 <h2 className="text-lg font-bold text-zinc-900 mb-3">About this Property</h2>
                 <p className="text-zinc-650 text-sm leading-relaxed whitespace-pre-line">{property.description}</p>
+              </div>
+            )}
+
+            {/* Embedded Live Google Maps Preview */}
+            {property.google_maps_link && (
+              <div className="bg-white rounded-xl p-6 border border-zinc-100 shadow-sm space-y-4">
+                <h2 className="text-lg font-bold text-zinc-900 flex items-center gap-2">
+                  <FaMap className="text-zinc-550" /> Location Map
+                </h2>
+                <div className="rounded-lg overflow-hidden h-72 border border-zinc-150 relative shadow-inner">
+                  <iframe
+                    title="Property Location Map"
+                    width="100%"
+                    height="100%"
+                    style={{ border: 0 }}
+                    src={`https://maps.google.com/maps?q=${encodeURIComponent(
+                      (property.locality ? property.locality + ", " : "") + property.city
+                    )}&t=&z=14&ie=UTF8&iwloc=&output=embed`}
+                    allowFullScreen
+                  />
+                </div>
+                <div className="flex justify-end">
+                  <a
+                    href={property.google_maps_link}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold px-4.5 py-3 rounded-lg transition shadow-sm"
+                  >
+                    View on Google Maps
+                  </a>
+                </div>
               </div>
             )}
           </div>

@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaHome, FaUpload, FaSpinner, FaTimes } from "react-icons/fa";
+import { FaHome, FaUpload, FaSpinner, FaTimes, FaMapMarkerAlt, FaMagic } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
 import { propertiesAPI } from "../api/api";
 import Navbar from "../components/Navbar";
@@ -31,16 +31,27 @@ export default function CreateListingPage() {
     listing_type: "buy",
     bedrooms: "",
     bathrooms: "",
-    area_sqft: ""
+    area_sqft: "",
+    google_maps_link: "",
+    has_parking: false
   });
 
   const [thumbnailUrl, setThumbnailUrl] = useState("");
+  const [bathroomUrl, setBathroomUrl] = useState("");
+  const [hallUrl, setHallUrl] = useState("");
+  const [kitchenUrl, setKitchenUrl] = useState("");
+  const [parkingUrl, setParkingUrl] = useState("");
   const [additionalImages, setAdditionalImages] = useState([]); // [{ url: "", caption: "", order: 0 }]
+
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
 
-  // Uploading state
+  // Uploading states
   const [thumbnailUploading, setThumbnailUploading] = useState(false);
+  const [bathroomUploading, setBathroomUploading] = useState(false);
+  const [hallUploading, setHallUploading] = useState(false);
+  const [kitchenUploading, setKitchenUploading] = useState(false);
+  const [parkingUploading, setParkingUploading] = useState(false);
   const [imageUploading, setImageUploading] = useState(false);
 
   const handleTextChange = (e) => {
@@ -48,39 +59,60 @@ export default function CreateListingPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleFileUpload = async (e, type, index = null) => {
+  const handleSelectChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({
+      ...prev,
+      [name]: value === "true" ? true : value === "false" ? false : value
+    }));
+  };
+
+  const handleFileUpload = async (e, type) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    if (type === "thumbnail") {
-      setThumbnailUploading(true);
-    } else {
-      setImageUploading(true);
-    }
+    if (type === "thumbnail") setThumbnailUploading(true);
+    else if (type === "bathroom") setBathroomUploading(true);
+    else if (type === "hall") setHallUploading(true);
+    else if (type === "kitchen") setKitchenUploading(true);
+    else if (type === "parking") setParkingUploading(true);
+    else setImageUploading(true);
 
     try {
       const response = await propertiesAPI.uploadImage(file);
-      if (type === "thumbnail") {
-        setThumbnailUrl(response.url);
-      } else {
+      const url = response.url;
+
+      if (type === "thumbnail") setThumbnailUrl(url);
+      else if (type === "bathroom") setBathroomUrl(url);
+      else if (type === "hall") setHallUrl(url);
+      else if (type === "kitchen") setKitchenUrl(url);
+      else if (type === "parking") setParkingUrl(url);
+      else {
         setAdditionalImages((prev) => [
           ...prev,
-          { url: response.url, caption: file.name.split(".")[0], order: prev.length }
+          { url, caption: file.name.split(".")[0], order: prev.length }
         ]);
       }
     } catch (err) {
       console.error(err);
       setError("Image upload failed. Please try again.");
     } finally {
-      setThumbnailUploading(false);
-      setImageUploading(false);
+      if (type === "thumbnail") setThumbnailUploading(false);
+      else if (type === "bathroom") setBathroomUploading(false);
+      else if (type === "hall") setHallUploading(false);
+      else if (type === "kitchen") setKitchenUploading(false);
+      else if (type === "parking") setParkingUploading(false);
+      else setImageUploading(false);
     }
   };
 
-  const handleAddPresetImage = (url) => {
-    if (!thumbnailUrl) {
-      setThumbnailUrl(url);
-    } else {
+  const handleAddPresetImage = (url, type) => {
+    if (type === "thumbnail") setThumbnailUrl(url);
+    else if (type === "bathroom") setBathroomUrl(url);
+    else if (type === "hall") setHallUrl(url);
+    else if (type === "kitchen") setKitchenUrl(url);
+    else if (type === "parking") setParkingUrl(url);
+    else {
       setAdditionalImages((prev) => [
         ...prev,
         { url, caption: "Preset Image", order: prev.length }
@@ -92,8 +124,28 @@ export default function CreateListingPage() {
     setAdditionalImages((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleRemoveThumbnail = () => {
-    setThumbnailUrl("");
+  const handleAutoFill = () => {
+    setThumbnailUrl("https://images.unsplash.com/photo-1600585154340-be6161a56a0c?auto=format&fit=crop&w=800&q=80");
+    setBathroomUrl("https://images.unsplash.com/photo-1584622650111-993a426fbf0a?auto=format&fit=crop&w=800&q=80");
+    setHallUrl("https://images.unsplash.com/photo-1600210492486-724fe5c67fb0?auto=format&fit=crop&w=800&q=80");
+    setKitchenUrl("https://images.unsplash.com/photo-1556911220-e15b29be8c8f?auto=format&fit=crop&w=800&q=80");
+    setParkingUrl("https://images.unsplash.com/photo-1590674899484-d5640e854abe?auto=format&fit=crop&w=800&q=80");
+    setFormData({
+      title: "Luxury Modern Home with Parking & Premium Finish",
+      description: "A gorgeous luxury modern home featuring high-end modular kitchen, designer bathrooms, spacious hall, and private parking. Located in a premium residential area.",
+      price: "8500000",
+      price_label: "₹85 Lakhs",
+      city: "Mumbai",
+      locality: "Bandra West",
+      address: "302 Golden Heights, Bandra West",
+      property_type: "villa",
+      listing_type: "buy",
+      bedrooms: "3",
+      bathrooms: "3",
+      area_sqft: "1650",
+      google_maps_link: "https://maps.google.com/?q=Bandra+West+Mumbai",
+      has_parking: true
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -110,6 +162,26 @@ export default function CreateListingPage() {
       setError("Please provide or upload a thumbnail photo.");
       return;
     }
+    if (!bathroomUrl) {
+      setError("Please provide or upload a bathroom photo.");
+      return;
+    }
+    if (!hallUrl) {
+      setError("Please provide or upload a hall/living room photo.");
+      return;
+    }
+    if (!kitchenUrl) {
+      setError("Please provide or upload a kitchen photo.");
+      return;
+    }
+    if (formData.has_parking && !parkingUrl) {
+      setError("Please provide or upload a parking photo (since parking is enabled).");
+      return;
+    }
+    if (!formData.google_maps_link) {
+      setError("Please provide a Google Maps location link.");
+      return;
+    }
 
     setIsSubmitting(true);
 
@@ -121,6 +193,12 @@ export default function CreateListingPage() {
       bathrooms: formData.bathrooms ? parseInt(formData.bathrooms) : null,
       area_sqft: formData.area_sqft ? parseFloat(formData.area_sqft) : null,
       thumbnail_url: thumbnailUrl,
+      bathroom_image_url: bathroomUrl,
+      hall_image_url: hallUrl,
+      kitchen_image_url: kitchenUrl,
+      has_parking: formData.has_parking,
+      parking_image_url: formData.has_parking ? parkingUrl : null,
+      google_maps_link: formData.google_maps_link,
       images: additionalImages.map((img, index) => ({
         url: img.url,
         caption: img.caption || "",
@@ -137,6 +215,39 @@ export default function CreateListingPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const renderUploadBox = (imageUrl, setImageUrl, uploading, label, type) => {
+    return (
+      <div className="border border-zinc-200 border-dashed rounded-lg p-5 bg-white text-center flex flex-col items-center justify-center min-h-[140px] relative overflow-hidden transition hover:border-zinc-350">
+        {imageUrl ? (
+          <>
+            <img src={imageUrl} alt={`${label} preview`} className="absolute inset-0 w-full h-full object-cover" />
+            <button
+              type="button"
+              onClick={() => setImageUrl("")}
+              className="absolute top-2 right-2 bg-zinc-900/80 hover:bg-zinc-950 text-white rounded-full p-1.5 text-xs transition z-10"
+            >
+              <FaTimes />
+            </button>
+            <span className="absolute bottom-2 left-2 bg-zinc-900/80 text-white text-[9px] font-bold px-2 py-0.5 rounded backdrop-blur-sm z-10 uppercase tracking-wider">
+              {label}
+            </span>
+          </>
+        ) : (
+          <label className="cursor-pointer flex flex-col items-center justify-center w-full h-full p-4">
+            {uploading ? (
+              <FaSpinner className="animate-spin text-zinc-450 text-2xl mb-2" />
+            ) : (
+              <FaUpload className="text-zinc-450 text-2xl mb-2" />
+            )}
+            <span className="text-xs font-semibold text-zinc-800">{label}</span>
+            <span className="text-[10px] text-zinc-400 mt-1">Upload Photo</span>
+            <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, type)} className="hidden" />
+          </label>
+        )}
+      </div>
+    );
   };
 
   if (!isLoggedIn) {
@@ -159,9 +270,18 @@ export default function CreateListingPage() {
     <div className="min-h-screen bg-white">
       <Navbar />
       <div className="pt-24 pb-16 max-w-4xl mx-auto px-6">
-        <div className="mb-6">
-          <h1 className="text-2xl font-bold tracking-tight text-zinc-900">List Your Property</h1>
-          <p className="text-zinc-550 text-sm mt-1">Upload high-quality photos and provide details to attract buyers or tenants.</p>
+        <div className="mb-6 flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight text-zinc-900">List Your Property</h1>
+            <p className="text-zinc-550 text-sm mt-1">Upload mandatory photos of core areas and provide details to attract buyers.</p>
+          </div>
+          <button
+            type="button"
+            onClick={handleAutoFill}
+            className="flex items-center gap-1.5 bg-indigo-50 border border-indigo-150 text-indigo-700 hover:bg-indigo-100 px-3.5 py-2 rounded-lg text-xs font-bold transition shadow-sm"
+          >
+            <FaMagic /> Autofill Sample Data
+          </button>
         </div>
 
         {error && (
@@ -173,85 +293,110 @@ export default function CreateListingPage() {
         <form onSubmit={handleSubmit} className="space-y-8">
           {/* PHOTO UPLOADER */}
           <div className="bg-zinc-50 border border-zinc-150 rounded-xl p-6">
-            <h3 className="text-sm font-bold text-zinc-900 mb-2">Property Photos</h3>
-            <p className="text-zinc-450 text-[11px] mb-4">Upload actual photo files or pick high-quality preset photos below.</p>
+            <h3 className="text-sm font-bold text-zinc-900 mb-2">Core Property Photos (Mandatory)</h3>
+            <p className="text-zinc-450 text-[11px] mb-4">Upload actual photo files or pick high-quality preset photos below for the required sections.</p>
 
-            <div className="grid sm:grid-cols-2 gap-4">
-              {/* Thumbnail card */}
-              <div className="border border-zinc-200 border-dashed rounded-lg p-5 bg-white text-center flex flex-col items-center justify-center min-h-[140px] relative overflow-hidden">
-                {thumbnailUrl ? (
-                  <>
-                    <img src={thumbnailUrl} alt="Thumbnail preview" className="absolute inset-0 w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={handleRemoveThumbnail}
-                      className="absolute top-2 right-2 bg-zinc-900/80 hover:bg-zinc-950 text-white rounded-full p-1.5 text-xs transition"
-                    >
-                      <FaTimes />
-                    </button>
-                  </>
-                ) : (
-                  <label className="cursor-pointer flex flex-col items-center">
-                    {thumbnailUploading ? (
-                      <FaSpinner className="animate-spin text-zinc-450 text-2xl mb-2" />
-                    ) : (
-                      <FaUpload className="text-zinc-450 text-2xl mb-2" />
-                    )}
-                    <span className="text-xs font-semibold text-zinc-800">Upload Main Thumbnail</span>
-                    <span className="text-[10px] text-zinc-400 mt-1">PNG, JPG up to 10MB</span>
-                    <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, "thumbnail")} className="hidden" />
-                  </label>
-                )}
-              </div>
+            <div className="grid sm:grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+              {/* Thumbnail */}
+              {renderUploadBox(thumbnailUrl, setThumbnailUrl, thumbnailUploading, "Exterior (Main)", "thumbnail")}
 
-              {/* Additional images upload card */}
-              <div className="border border-zinc-200 border-dashed rounded-lg p-5 bg-white text-center flex flex-col items-center justify-center min-h-[140px]">
-                <label className="cursor-pointer flex flex-col items-center">
-                  {imageUploading ? (
-                    <FaSpinner className="animate-spin text-zinc-450 text-2xl mb-2" />
-                  ) : (
-                    <FaUpload className="text-zinc-450 text-2xl mb-2" />
-                  )}
-                  <span className="text-xs font-semibold text-zinc-800">Upload Additional Photo</span>
-                  <span className="text-[10px] text-zinc-400 mt-1">Living rooms, kitchens, bedrooms</span>
-                  <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, "additional")} className="hidden" />
-                </label>
-              </div>
+              {/* Bathroom */}
+              {renderUploadBox(bathroomUrl, setBathroomUrl, bathroomUploading, "Bathroom", "bathroom")}
+
+              {/* Hall */}
+              {renderUploadBox(hallUrl, setHallUrl, hallUploading, "Living Room / Hall", "hall")}
+
+              {/* Kitchen */}
+              {renderUploadBox(kitchenUrl, setKitchenUrl, kitchenUploading, "Kitchen", "kitchen")}
             </div>
 
-            {/* Additional photos preview list */}
-            {additionalImages.length > 0 && (
-              <div className="mt-5 grid grid-cols-4 gap-3">
-                {additionalImages.map((img, i) => (
-                  <div key={i} className="h-16 relative rounded overflow-hidden border border-zinc-200 bg-zinc-100">
-                    <img src={img.url} alt="Room preview" className="w-full h-full object-cover" />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveImage(i)}
-                      className="absolute top-1 right-1 bg-zinc-900/90 text-white rounded-full p-1 text-[8px]"
-                    >
-                      <FaTimes />
-                    </button>
-                  </div>
-                ))}
+            {/* Dynamic Parking Image Upload */}
+            {formData.has_parking && (
+              <div className="border-t border-zinc-200 pt-5 mb-6">
+                <h4 className="text-xs font-bold text-zinc-900 mb-2.5">Parking Area Photo (Mandatory when Parking is available)</h4>
+                <div className="max-w-[220px]">
+                  {renderUploadBox(parkingUrl, setParkingUrl, parkingUploading, "Parking Space", "parking")}
+                </div>
               </div>
             )}
 
             {/* Presets picker */}
-            <div className="mt-6 border-t border-zinc-150 pt-4">
+            <div className="border-t border-zinc-150 pt-4">
               <span className="text-[11px] font-bold text-zinc-550 uppercase tracking-wider block mb-2.5">Quick High-Quality Presets</span>
               <div className="flex flex-wrap gap-2">
                 {PRESET_PHOTOS.map((p, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onClick={() => handleAddPresetImage(p.url)}
-                    className="flex items-center gap-1.5 bg-white border border-zinc-200 text-zinc-700 hover:border-zinc-900 px-3 py-1.5 rounded-full text-xs font-medium shadow-sm transition"
-                  >
-                    🏠 {p.label}
-                  </button>
+                  <div key={i} className="flex gap-1">
+                    <button
+                      type="button"
+                      onClick={() => handleAddPresetImage(p.url, "thumbnail")}
+                      className="bg-white border border-zinc-200 text-zinc-700 hover:border-zinc-900 px-3 py-1.5 rounded-l-full text-[10px] font-medium shadow-sm transition"
+                    >
+                      📷 {p.label} (Main)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddPresetImage(p.url, "hall")}
+                      className="bg-white border-y border-r border-zinc-200 text-zinc-700 hover:border-zinc-900 px-2 py-1.5 text-[10px] font-medium shadow-sm transition"
+                    >
+                      Hall
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddPresetImage(p.url, "kitchen")}
+                      className="bg-white border-y border-r border-zinc-200 text-zinc-700 hover:border-zinc-900 px-2 py-1.5 text-[10px] font-medium shadow-sm transition"
+                    >
+                      Kitchen
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddPresetImage(p.url, "bathroom")}
+                      className="bg-white border-y border-r border-zinc-200 text-zinc-700 hover:border-zinc-900 px-2 py-1.5 text-[10px] font-medium shadow-sm transition"
+                    >
+                      Bath
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => handleAddPresetImage(p.url, "parking")}
+                      className="bg-white border-y border-r border-zinc-200 text-zinc-700 hover:border-zinc-900 px-3 py-1.5 rounded-r-full text-[10px] font-medium shadow-sm transition"
+                    >
+                      Park
+                    </button>
+                  </div>
                 ))}
               </div>
+            </div>
+          </div>
+
+          {/* ADDITIONAL PHOTOS (OPTIONAL) */}
+          <div className="bg-zinc-50 border border-zinc-150 rounded-xl p-6">
+            <h3 className="text-sm font-bold text-zinc-900 mb-1">More Photos (Optional)</h3>
+            <p className="text-zinc-450 text-[11px] mb-4">Add extra views of balconies, bedrooms, garden, etc.</p>
+
+            <div className="grid sm:grid-cols-4 gap-4">
+              <div className="border border-zinc-200 border-dashed rounded-lg p-5 bg-white text-center flex flex-col items-center justify-center min-h-[140px]">
+                <label className="cursor-pointer flex flex-col items-center">
+                  {imageUploading ? (
+                    <FaSpinner className="animate-spin text-zinc-450 text-xl mb-2" />
+                  ) : (
+                    <FaUpload className="text-zinc-450 text-xl mb-2" />
+                  )}
+                  <span className="text-xs font-semibold text-zinc-800">Upload Photo</span>
+                  <input type="file" accept="image/*" onChange={(e) => handleFileUpload(e, "additional")} className="hidden" />
+                </label>
+              </div>
+
+              {additionalImages.map((img, i) => (
+                <div key={i} className="min-h-[140px] relative rounded-lg overflow-hidden border border-zinc-200 bg-zinc-100">
+                  <img src={img.url} alt="Room preview" className="w-full h-full object-cover" />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveImage(i)}
+                    className="absolute top-2 right-2 bg-zinc-900/90 text-white rounded-full p-1 text-[10px]"
+                  >
+                    <FaTimes />
+                  </button>
+                </div>
+              ))}
             </div>
           </div>
 
@@ -347,6 +492,28 @@ export default function CreateListingPage() {
             </div>
 
             <div>
+              <label className="text-xs font-semibold text-zinc-650 mb-1.5 block">Parking Space Available?</label>
+              <select
+                name="has_parking" value={formData.has_parking ? "true" : "false"} onChange={handleSelectChange}
+                className="w-full border border-zinc-200 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-zinc-400 bg-white font-medium"
+              >
+                <option value="false">No Parking Available</option>
+                <option value="true">Yes, Parking Available (Photo Required)</option>
+              </select>
+            </div>
+
+            <div className="col-span-2">
+              <label className="text-xs font-semibold text-zinc-650 mb-1.5 block flex items-center gap-1">
+                <FaMapMarkerAlt className="text-zinc-450" /> Google Maps Location Link
+              </label>
+              <input
+                type="url" name="google_maps_link" value={formData.google_maps_link} onChange={handleTextChange} required
+                placeholder="e.g. https://maps.app.goo.gl/..."
+                className="w-full border border-zinc-200 rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+              />
+            </div>
+
+            <div>
               <label className="text-xs font-semibold text-zinc-650 mb-1.5 block">City</label>
               <input
                 type="text" name="city" value={formData.city} onChange={handleTextChange} required
@@ -364,7 +531,7 @@ export default function CreateListingPage() {
               />
             </div>
 
-            <div>
+            <div className="col-span-2">
               <label className="text-xs font-semibold text-zinc-650 mb-1.5 block">Detailed Address</label>
               <input
                 type="text" name="address" value={formData.address} onChange={handleTextChange}

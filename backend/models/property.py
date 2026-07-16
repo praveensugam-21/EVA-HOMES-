@@ -45,6 +45,19 @@ class Property(Base):
     bathrooms = Column(Integer, nullable=True)
     area_sqft = Column(Float, nullable=True)
     thumbnail_url = Column(String(500), nullable=True)
+    
+    # Mandatory rooms
+    bathroom_image_url = Column(String(500), nullable=False)
+    hall_image_url = Column(String(500), nullable=False)
+    kitchen_image_url = Column(String(500), nullable=False)
+    
+    # Parking details (optional parking, mandatory photo if has_parking is True)
+    has_parking = Column(Boolean, default=False, nullable=False)
+    parking_image_url = Column(String(500), nullable=True)
+    
+    # Location details
+    google_maps_link = Column(String(1000), nullable=False)
+
     is_featured = Column(Boolean, default=False)
     is_verified = Column(Boolean, default=False)
 

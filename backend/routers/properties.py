@@ -244,6 +244,12 @@ def create_property(
         bathrooms=property_data.bathrooms,
         area_sqft=property_data.area_sqft,
         thumbnail_url=property_data.thumbnail_url,
+        bathroom_image_url=property_data.bathroom_image_url,
+        hall_image_url=property_data.hall_image_url,
+        kitchen_image_url=property_data.kitchen_image_url,
+        has_parking=property_data.has_parking,
+        parking_image_url=property_data.parking_image_url,
+        google_maps_link=property_data.google_maps_link,
         owner_id=current_user.id,  # ← automatically link to logged-in user
     )
 

@@ -11,7 +11,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 # Import our Enum types from the model
 # We reuse the same enums for both DB and API validation
@@ -50,6 +50,12 @@ class PropertyBase(BaseModel):
     bathrooms: Optional[int] = None
     area_sqft: Optional[float] = None
     thumbnail_url: Optional[str] = None
+    bathroom_image_url: str
+    hall_image_url: str
+    kitchen_image_url: str
+    has_parking: bool = False
+    parking_image_url: Optional[str] = None
+    google_maps_link: str
 
 
 # ---- CREATE SCHEMA ----
@@ -57,6 +63,12 @@ class PropertyBase(BaseModel):
 # client also sends a list of image URLs (optional)
 class PropertyCreate(PropertyBase):
     images: Optional[List[PropertyImageCreate]] = []
+
+    @model_validator(mode="after")
+    def check_parking_image(self):
+        if self.has_parking and not self.parking_image_url:
+            raise ValueError("Parking image is required when parking is enabled.")
+        return self
 
 
 # ---- UPDATE SCHEMA ----
@@ -76,6 +88,12 @@ class PropertyUpdate(BaseModel):
     bathrooms: Optional[int] = None
     area_sqft: Optional[float] = None
     thumbnail_url: Optional[str] = None
+    bathroom_image_url: Optional[str] = None
+    hall_image_url: Optional[str] = None
+    kitchen_image_url: Optional[str] = None
+    has_parking: Optional[bool] = None
+    parking_image_url: Optional[str] = None
+    google_maps_link: Optional[str] = None
 
 
 # ---- FULL RESPONSE (single property detail page) ----
@@ -112,6 +130,7 @@ class PropertyListItem(BaseModel):
     thumbnail_url: Optional[str] = None
     is_featured: bool
     is_verified: bool
+    has_parking: bool
     created_at: datetime
 
     model_config = {"from_attributes": True}

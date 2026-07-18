@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaBed, FaBath, FaRulerCombined, FaMapMarkerAlt, FaCheckCircle, FaSpinner, FaCar, FaMap } from "react-icons/fa";
+import { FaBed, FaBath, FaRulerCombined, FaMapMarkerAlt, FaCheckCircle, FaSpinner, FaCar, FaMap, FaPhoneAlt, FaWhatsapp, FaUserShield } from "react-icons/fa";
 import { propertiesAPI, enquiriesAPI } from "../api/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -10,18 +10,25 @@ export default function PropertyDetailPage() {
   const navigate = useNavigate();
 
   const [property, setProperty] = useState(null);
+  const [contact, setContact] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [activePhoto, setActivePhoto] = useState("");
-  const [enquiry, setEnquiry] = useState({ name: "", email: "", phone: "", message: "I am interested in this property and would like to schedule a visit." });
+  const [enquiry, setEnquiry] = useState({ name: "", email: "", phone: "", message: "" });
+  const [enquirySource, setEnquirySource] = useState("form");
   const [enquiryStatus, setEnquiryStatus] = useState(""); // "success" | "error" | ""
+  const [enquiryError, setEnquiryError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     const loadProperty = async () => {
       setIsLoading(true);
       try {
-        const data = await propertiesAPI.getById(id);
+        const [data, contactData] = await Promise.all([
+          propertiesAPI.getById(id),
+          propertiesAPI.getContact(id),
+        ]);
         setProperty(data);
+        setContact(contactData);
         setActivePhoto(data.thumbnail_url);
       } catch (err) {
         if (err.response?.status === 404) navigate("/listings");
@@ -33,17 +40,23 @@ export default function PropertyDetailPage() {
   }, [id, navigate]);
 
   const handleEnquiryChange = (e) => {
+    setEnquiryStatus("");
+    setEnquiryError("");
     setEnquiry((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
   const handleEnquirySubmit = async (e) => {
     e.preventDefault();
+    setEnquiryError("");
     setIsSubmitting(true);
     try {
-      await enquiriesAPI.submit({ ...enquiry, property_id: property.id });
+      await enquiriesAPI.submit({ ...enquiry, property_id: property.id, source: enquirySource });
       setEnquiryStatus("success");
-    } catch {
+      setEnquiry({ name: "", email: "", phone: "", message: "" });
+    } catch (err) {
       setEnquiryStatus("error");
+      const detail = err.response?.data?.detail;
+      setEnquiryError(Array.isArray(detail) ? "Please correct the highlighted enquiry details and try again." : detail || "Unable to send the enquiry right now. Please check your details and try again.");
     } finally {
       setIsSubmitting(false);
     }
@@ -223,14 +236,54 @@ export default function PropertyDetailPage() {
 
           <div className="lg:col-span-1">
             <div className="bg-white rounded-xl p-6 border border-zinc-150 shadow-sm sticky top-24">
-              <h3 className="text-base font-bold text-zinc-900">Contact Agent</h3>
-              {property.owner_name && <p className="text-zinc-400 text-xs mt-1 mb-4">Listed by: {property.owner_name}</p>}
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-base font-bold text-zinc-900">Contact Broker</h3>
+                  <p className="text-zinc-400 text-xs mt-1">Verified contact desk for this property</p>
+                </div>
+                <div className="h-9 w-9 rounded-lg bg-zinc-900 text-white flex items-center justify-center">
+                  <FaUserShield />
+                </div>
+              </div>
+
+              <div className="mt-5 rounded-lg border border-zinc-100 bg-zinc-50 p-4 space-y-2">
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-zinc-500">Posted by</span>
+                  <span className="font-semibold text-zinc-900 text-right">{contact?.owner_name || property.owner_name || "Verified owner"}</span>
+                </div>
+                <div className="flex items-center justify-between gap-3 text-sm">
+                  <span className="text-zinc-500">Owner phone</span>
+                  <span className="font-semibold text-zinc-900">{contact?.owner_phone_masked || "Hidden"}</span>
+                </div>
+                <p className="text-[11px] leading-relaxed text-zinc-500 pt-1">
+                  Owner contact is protected. Buyers connect through the broker desk for visits and negotiation.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3 mt-4">
+                <a
+                  href={contact?.broker_phone ? `tel:${contact.broker_phone}` : undefined}
+                  className="flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold px-3 py-3 rounded-lg transition"
+                >
+                  <FaPhoneAlt /> Call
+                </a>
+                <a
+                  href={contact?.whatsapp_link || "#"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-3 rounded-lg transition"
+                >
+                  <FaWhatsapp /> WhatsApp
+                </a>
+              </div>
+
+              <div className="my-5 h-px bg-zinc-100" />
 
               {enquiryStatus === "success" ? (
                 <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-5 text-center">
-                  <p className="text-3xl mb-2">✅</p>
-                  <p className="font-bold text-emerald-800 text-sm">Enquiry Sent!</p>
-                  <p className="text-emerald-600 text-xs mt-1">The owner/agent will contact you shortly.</p>
+                  <FaCheckCircle className="text-emerald-600 text-3xl mx-auto mb-2" />
+                  <p className="font-bold text-emerald-800 text-sm">Enquiry Sent</p>
+                  <p className="text-emerald-600 text-xs mt-1">The broker desk will contact you shortly.</p>
                 </div>
               ) : (
                 <form onSubmit={handleEnquirySubmit} className="space-y-4">
@@ -243,6 +296,7 @@ export default function PropertyDetailPage() {
                       <label className="text-xs font-semibold text-zinc-500 mb-1 block">{f.label}</label>
                       <input type={f.type} name={f.name} id={`enquiry-${f.name}`} value={enquiry[f.name]}
                         onChange={handleEnquiryChange} required={f.name !== "phone"}
+                        placeholder={f.name === "phone" ? "Optional" : ""}
                         className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-400 bg-white" />
                     </div>
                   ))}
@@ -250,14 +304,27 @@ export default function PropertyDetailPage() {
                     <label className="text-xs font-semibold text-zinc-500 mb-1 block">Message</label>
                     <textarea name="message" id="enquiry-message" rows={3} value={enquiry.message}
                       onChange={handleEnquiryChange} required
+                      placeholder="Tell us what you want to know about this property."
                       className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-400 resize-none bg-white" />
                   </div>
                   {enquiryStatus === "error" && (
-                    <p className="text-red-500 text-xs">Failed to send enquiry. Please try again.</p>
+                    <p className="text-red-500 text-xs">{enquiryError}</p>
                   )}
-                  <button type="submit" id="enquiry-submit" disabled={isSubmitting}
+                  <button
+                    type="submit"
+                    id="enquiry-submit"
+                    disabled={isSubmitting}
+                    onClick={() => setEnquirySource("form")}
                     className="w-full bg-zinc-900 hover:bg-zinc-800 text-white text-sm font-semibold py-3.5 rounded-lg transition flex items-center justify-center gap-2">
                     {isSubmitting ? <><FaSpinner className="animate-spin" /> Sending...</> : "Send Enquiry"}
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    onClick={() => setEnquirySource("callback_request")}
+                    className="w-full border border-zinc-200 hover:border-zinc-400 text-zinc-800 text-sm font-semibold py-3.5 rounded-lg transition flex items-center justify-center gap-2"
+                  >
+                    Request Owner Callback
                   </button>
                 </form>
               )}

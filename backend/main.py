@@ -3,17 +3,39 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy import inspect, text
 from core.config import settings
 from database import Base, engine
 import models
-from routers import auth, cities, enquiries, properties
+from routers import auth, cities, enquiries, properties, settings as settings_router
 
 # Ensure static/uploads folder exists at startup before mounting
 os.makedirs(os.path.join("static", "uploads"), exist_ok=True)
 
+
+def ensure_enquiry_columns():
+    """Add lightweight lead-tracking columns for existing SQLite databases."""
+    inspector = inspect(engine)
+    if "enquiries" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("enquiries")}
+    columns_to_add = {
+        "source": "ALTER TABLE enquiries ADD COLUMN source VARCHAR(40) NOT NULL DEFAULT 'form'",
+        "status": "ALTER TABLE enquiries ADD COLUMN status VARCHAR(40) NOT NULL DEFAULT 'new'",
+        "broker_notes": "ALTER TABLE enquiries ADD COLUMN broker_notes TEXT",
+    }
+
+    with engine.begin() as connection:
+        for column_name, statement in columns_to_add.items():
+            if column_name not in existing_columns:
+                connection.execute(text(statement))
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
+    ensure_enquiry_columns()
     yield
 
 app = FastAPI(
@@ -59,6 +81,7 @@ app.include_router(auth.router)
 app.include_router(properties.router)
 app.include_router(cities.router)
 app.include_router(enquiries.router)
+app.include_router(settings_router.router)
 
 @app.get("/", tags=["Health"])
 def root():

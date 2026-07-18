@@ -45,6 +45,22 @@ export default function Navbar() {
         <div className="hidden lg:flex items-center gap-4">
           {isLoggedIn ? (
             <div className="flex items-center gap-4">
+              {user?.is_admin && (
+                <>
+                  <Link to="/admin/users" className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 transition">
+                    Users
+                  </Link>
+                  <Link to="/admin/listings" className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 transition">
+                    Listings
+                  </Link>
+                  <Link to="/admin/enquiries" className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 transition">
+                    Enquiries
+                  </Link>
+                  <Link to="/admin/settings/broker-contact" className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 transition">
+                    Broker Settings
+                  </Link>
+                </>
+              )}
               <Link to="/listings/create" className="text-xs font-semibold text-zinc-900 border border-zinc-900 px-3.5 py-1.5 rounded-lg hover:bg-zinc-900 hover:text-white transition">
                 + List Property
               </Link>
@@ -100,6 +116,38 @@ export default function Navbar() {
           <div className="pt-3 border-t border-zinc-100">
             {isLoggedIn ? (
               <div className="space-y-2">
+                {user?.is_admin && (
+                  <>
+                    <Link
+                      to="/admin/users"
+                      className="block text-center border border-zinc-200 text-zinc-700 py-2.5 rounded-lg text-sm font-medium"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Users
+                    </Link>
+                    <Link
+                      to="/admin/listings"
+                      className="block text-center border border-zinc-200 text-zinc-700 py-2.5 rounded-lg text-sm font-medium"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Listings
+                    </Link>
+                    <Link
+                      to="/admin/enquiries"
+                      className="block text-center border border-zinc-200 text-zinc-700 py-2.5 rounded-lg text-sm font-medium"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Enquiries
+                    </Link>
+                    <Link
+                      to="/admin/settings/broker-contact"
+                      className="block text-center border border-zinc-200 text-zinc-700 py-2.5 rounded-lg text-sm font-medium"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Broker Settings
+                    </Link>
+                  </>
+                )}
                 <Link
                   to="/listings/create"
                   className="block text-center border border-zinc-900 text-zinc-900 py-2.5 rounded-lg text-sm font-medium"

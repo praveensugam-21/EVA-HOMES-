@@ -1,5 +1,6 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Navigate, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
+import { useAuth } from "./context/AuthContext";
 
 // Pages
 import LoginPage from "./pages/LoginPage";
@@ -7,6 +8,10 @@ import RegisterPage from "./pages/RegisterPage";
 import ListingsPage from "./pages/ListingsPage";
 import PropertyDetailPage from "./pages/PropertyDetailPage";
 import CreateListingPage from "./pages/CreateListingPage";
+import AdminBrokerSettingsPage from "./pages/AdminBrokerSettingsPage";
+import AdminEnquiriesPage from "./pages/AdminEnquiriesPage";
+import AdminListingsPage from "./pages/AdminListingsPage";
+import AdminUsersPage from "./pages/AdminUsersPage";
 
 // Components
 import Navbar from "./components/Navbar";
@@ -33,6 +38,20 @@ function HomePage() {
   );
 }
 
+function AdminRoute({ children }) {
+  const { user, isLoggedIn } = useAuth();
+
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!user?.is_admin) {
+    return <Navigate to="/" replace />;
+  }
+
+  return children;
+}
+
 function App() {
   return (
     <BrowserRouter>
@@ -42,6 +61,38 @@ function App() {
           <Route path="/listings" element={<ListingsPage />} />
           <Route path="/properties/:id" element={<PropertyDetailPage />} />
           <Route path="/listings/create" element={<CreateListingPage />} />
+          <Route
+            path="/admin/enquiries"
+            element={
+              <AdminRoute>
+                <AdminEnquiriesPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/listings"
+            element={
+              <AdminRoute>
+                <AdminListingsPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/users"
+            element={
+              <AdminRoute>
+                <AdminUsersPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/settings/broker-contact"
+            element={
+              <AdminRoute>
+                <AdminBrokerSettingsPage />
+              </AdminRoute>
+            }
+          />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route

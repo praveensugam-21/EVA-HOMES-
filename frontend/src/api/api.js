@@ -106,6 +106,22 @@ export const authAPI = {
     const response = await api.get("/api/auth/me");
     return response.data;
   },
+
+  /**
+   * Get all users for admin management.
+   */
+  listUsers: async (params = {}) => {
+    const response = await api.get("/api/auth/users", { params });
+    return response.data;
+  },
+
+  /**
+   * Update a user's admin or active status.
+   */
+  updateUser: async (id, data) => {
+    const response = await api.put(`/api/auth/users/${id}`, data);
+    return response.data;
+  },
 };
 
 // ============================================================
@@ -143,6 +159,15 @@ export const propertiesAPI = {
   },
 
   /**
+   * Get safe broker contact details for a property.
+   * The backend masks owner phone and returns broker contact actions.
+   */
+  getContact: async (id) => {
+    const response = await api.get(`/api/properties/${id}/contact`);
+    return response.data;
+  },
+
+  /**
    * Create a new property listing (requires login)
    * @param {Object} propertyData - Property fields
    */
@@ -158,6 +183,14 @@ export const propertiesAPI = {
    */
   update: async (id, updates) => {
     const response = await api.put(`/api/properties/${id}`, updates);
+    return response.data;
+  },
+
+  /**
+   * Get all properties for admin moderation.
+   */
+  listAdmin: async (params = {}) => {
+    const response = await api.get("/api/properties/admin/all", { params });
     return response.data;
   },
 
@@ -211,6 +244,36 @@ export const enquiriesAPI = {
    */
   submit: async (data) => {
     const response = await api.post("/api/enquiries", data);
+    return response.data;
+  },
+  list: async (params = {}) => {
+    const response = await api.get("/api/enquiries", { params });
+    return response.data;
+  },
+  update: async (id, data) => {
+    const response = await api.put(`/api/enquiries/${id}`, data);
+    return response.data;
+  },
+};
+
+// ============================================================
+// SETTINGS API FUNCTIONS
+// ============================================================
+
+export const settingsAPI = {
+  /**
+   * Get broker contact settings.
+   */
+  getBrokerContact: async () => {
+    const response = await api.get("/api/settings/broker-contact");
+    return response.data;
+  },
+
+  /**
+   * Update broker contact settings (admin only).
+   */
+  updateBrokerContact: async (data) => {
+    const response = await api.put("/api/settings/broker-contact", data);
     return response.data;
   },
 };

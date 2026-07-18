@@ -94,6 +94,8 @@ class PropertyUpdate(BaseModel):
     has_parking: Optional[bool] = None
     parking_image_url: Optional[str] = None
     google_maps_link: Optional[str] = None
+    is_featured: Optional[bool] = None
+    is_verified: Optional[bool] = None
 
 
 # ---- FULL RESPONSE (single property detail page) ----
@@ -145,3 +147,37 @@ class PropertyListResponse(BaseModel):
     page: int         # current page number
     per_page: int     # how many items per page
     total_pages: int  # total number of pages
+
+
+class PropertyContactResponse(BaseModel):
+    property_id: int
+    owner_name: Optional[str] = None
+    owner_phone_masked: Optional[str] = None
+    broker_name: str
+    broker_phone: str
+    whatsapp_link: str
+
+
+class PropertyAdminItem(BaseModel):
+    id: int
+    title: str
+    city: str
+    locality: Optional[str] = None
+    price: float
+    price_label: Optional[str] = None
+    property_type: PropertyType
+    listing_type: ListingType
+    status: PropertyStatus
+    thumbnail_url: Optional[str] = None
+    is_featured: bool
+    is_verified: bool
+    owner_id: int
+    owner_name: Optional[str] = None
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PropertyAdminListResponse(BaseModel):
+    items: List[PropertyAdminItem]
+    total: int

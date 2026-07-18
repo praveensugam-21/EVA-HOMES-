@@ -9,6 +9,7 @@
 # This gives us type checking + a single place to manage config.
 # ============================================================
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings  # reads .env files
 from functools import lru_cache             # caches the settings object
 
@@ -31,6 +32,21 @@ class Settings(BaseSettings):
     APP_NAME: str = "EVA Homes API"
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
+
+    # --- Broker Contact ---
+    # Public visitors see this broker contact instead of the owner's full phone.
+    BROKER_NAME: str = "EVA Homes Broker Desk"
+    BROKER_PHONE: str = "+919900612425"
+    BROKER_WHATSAPP: str = "+919900612425"
+
+    @field_validator("DEBUG", mode="before")
+    @classmethod
+    def parse_debug(cls, value):
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"warn", "warning", "error", "info"}:
+                return False
+        return value
 
     class Config:
         # Tell Pydantic to look for a .env file in the same folder

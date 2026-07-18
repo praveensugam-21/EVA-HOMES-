@@ -55,6 +55,10 @@ eva-homes/
 - Create property listings after login
 - Upload property images
 - Submit enquiries for properties
+- Review and manage enquiries from an admin workspace
+- Review and moderate all listings from an admin workspace
+- Manage users, admin access, and account activation from an admin workspace
+- Admin-only broker settings page to edit call and WhatsApp numbers from the website
 - Use FastAPI automatic API documentation for testing endpoints
 
 ## Backend Setup
@@ -160,6 +164,13 @@ Password: password123
 
 Use it to log in and create a property listing.
 
+Admin account for broker settings:
+
+```text
+Email: admin@evahomes.com
+Password: admin123
+```
+
 ## Important Commands
 
 Backend:
@@ -196,10 +207,15 @@ GET  /health
 POST /api/auth/register
 POST /api/auth/login
 GET  /api/properties
+GET  /api/properties/admin/all
+GET  /api/auth/users
+PUT  /api/auth/users/{id}
 POST /api/properties
 POST /api/properties/upload-image
 GET  /api/cities
 POST /api/enquiries
+GET  /api/enquiries
+PUT  /api/enquiries/{id}
 ```
 
 ## Image Uploads
@@ -222,6 +238,11 @@ http://localhost:8000/static/uploads/<filename>
 - Run frontend commands from the `frontend` folder because `package.json` is located there.
 - Do not commit virtual environments, `node_modules`, local `.env` files, generated database files, or build output.
 - Keep this root README as the main project documentation.
+
+## Additional Guides
+
+- `PROJECT_GUIDE.md` explains the full project structure, setup, and development workflow.
+- `BROKER_CONTACT_FLOW.md` explains the broker-assisted contact model, masked owner phone flow, and enquiry lead tracking.
 
 ## Build
 

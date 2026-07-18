@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from typing import Optional
+from typing import Literal, Optional
 from pydantic import BaseModel, EmailStr, field_validator
 
 class UserBase(BaseModel):
@@ -50,10 +50,19 @@ class UserResponse(UserBase):
 
     model_config = {"from_attributes": True}
 
+
+class UserAdminListResponse(BaseModel):
+    items: list[UserResponse]
+    total: int
+
+
+class UserAdminUpdate(BaseModel):
+    is_active: Optional[bool] = None
+    is_admin: Optional[bool] = None
+
 class Token(BaseModel):
     access_token: str
     token_type: str = "bearer"
 
 class TokenData(BaseModel):
     email: Optional[str] = None
-

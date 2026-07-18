@@ -9,3 +9,4 @@
 from models.user import User
 from models.property import Property, PropertyImage
 from models.enquiry import Enquiry
+from models.broker_settings import BrokerSettings

@@ -1,27 +1,24 @@
-# ============================================================
-# routers/enquiries.py — Contact Enquiry Endpoints
-# ============================================================
-# POST /api/enquiries         → Submit a new enquiry (public)
-# GET  /api/enquiries         → View all enquiries (admin only)
-# PUT  /api/enquiries/{id}/read → Mark enquiry as read (admin only)
-# ============================================================
-
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from core.rate_limit import client_identifier, rate_limiter
 from database import get_db
 from models.enquiry import Enquiry
+from models.property import Property
 from models.user import User
-from routers.auth import get_admin_user, get_current_user
-from schemas.enquiry import EnquiryCreate, EnquiryResponse
+from routers.auth import get_admin_user
+from schemas.enquiry import (
+    EnquiryAdminItem,
+    EnquiryCreate,
+    EnquiryListResponse,
+    EnquiryResponse,
+    EnquiryUpdate,
+)
 
 router = APIRouter(prefix="/api/enquiries", tags=["Enquiries"])
 
 
-# ============================================================
-# ENDPOINT 1: Submit an Enquiry (PUBLIC — no login needed)
-# POST /api/enquiries
-# ============================================================
 @router.post(
     "",
     response_model=EnquiryResponse,
@@ -29,32 +26,38 @@ router = APIRouter(prefix="/api/enquiries", tags=["Enquiries"])
     summary="Submit a contact enquiry"
 )
 def submit_enquiry(
+    request: Request,
     enquiry_data: EnquiryCreate,
     db: Session = Depends(get_db),
-    # current_user is optional — guests can also submit enquiries
-    # We use a try-except approach via Optional dependency
 ):
     """
-    Submits a contact enquiry.
-    
-    Anyone can submit — no login required.
-    
-    Request body:
-    {
-        "name": "Amit Kumar",
-        "email": "amit@gmail.com",
-        "phone": "9876543210",
-        "message": "I'm interested in this property.",
-        "property_id": 5
-    }
+    Anyone can submit an enquiry.
+    A simple per-client rate limit reduces abuse on the public form.
     """
+    rate_limiter.check(
+        client_identifier(request, "submit-enquiry"),
+        limit=5,
+        window_seconds=60,
+    )
+
+    if enquiry_data.property_id:
+        property_exists = (
+            db.query(Property.id)
+            .filter(Property.id == enquiry_data.property_id)
+            .first()
+        )
+        if not property_exists:
+            raise HTTPException(status_code=404, detail="Property not found.")
+
     new_enquiry = Enquiry(
         name=enquiry_data.name,
         email=enquiry_data.email,
         phone=enquiry_data.phone,
         message=enquiry_data.message,
+        source=enquiry_data.source,
+        status="read" if enquiry_data.source == "whatsapp" else "new",
         property_id=enquiry_data.property_id,
-        # user_id will be None for guests (not logged in)
+        is_read=enquiry_data.source == "whatsapp",
     )
     db.add(new_enquiry)
     db.commit()
@@ -62,47 +65,87 @@ def submit_enquiry(
     return new_enquiry
 
 
-# ============================================================
-# ENDPOINT 2: List All Enquiries (ADMIN ONLY)
-# GET /api/enquiries
-# ============================================================
 @router.get(
     "",
-    response_model=list[EnquiryResponse],
+    response_model=EnquiryListResponse,
     summary="Get all enquiries (admin only)"
 )
 def list_enquiries(
+    status_filter: str | None = Query(None, alias="status"),
+    unread_only: bool = Query(False),
+    search: str | None = Query(None, min_length=2),
     db: Session = Depends(get_db),
-    current_admin: User = Depends(get_admin_user)  # ← admin check
+    current_admin: User = Depends(get_admin_user),
 ):
     """
-    Returns all enquiries, newest first.
-    Only accessible by admin users.
+    Returns broker-facing enquiry data with counts for the admin dashboard.
     """
-    enquiries = db.query(Enquiry).order_by(Enquiry.created_at.desc()).all()
-    return enquiries
+    query = db.query(Enquiry).outerjoin(Property, Property.id == Enquiry.property_id)
+
+    if status_filter:
+        query = query.filter(Enquiry.status == status_filter)
+
+    if unread_only:
+        query = query.filter(Enquiry.is_read.is_(False))
+
+    if search:
+        search_term = f"%{search.strip()}%"
+        query = query.filter(
+            Enquiry.name.ilike(search_term) |
+            Enquiry.email.ilike(search_term) |
+            Enquiry.phone.ilike(search_term) |
+            Enquiry.message.ilike(search_term) |
+            Property.title.ilike(search_term)
+        )
+
+    enquiries = query.order_by(Enquiry.created_at.desc()).all()
+    unread_count = db.query(func.count(Enquiry.id)).filter(Enquiry.is_read.is_(False)).scalar() or 0
+    new_count = db.query(func.count(Enquiry.id)).filter(Enquiry.status == "new").scalar() or 0
+
+    items = [
+        EnquiryAdminItem(
+            **EnquiryResponse.model_validate(enquiry).model_dump(),
+            property_title=enquiry.property.title if enquiry.property else None,
+            property_city=enquiry.property.city if enquiry.property else None,
+            property_locality=enquiry.property.locality if enquiry.property else None,
+        )
+        for enquiry in enquiries
+    ]
+
+    return EnquiryListResponse(
+        items=items,
+        total=len(items),
+        unread_count=unread_count,
+        new_count=new_count,
+    )
 
 
-# ============================================================
-# ENDPOINT 3: Mark Enquiry as Read (ADMIN ONLY)
-# PUT /api/enquiries/{enquiry_id}/read
-# ============================================================
 @router.put(
-    "/{enquiry_id}/read",
+    "/{enquiry_id}",
     response_model=EnquiryResponse,
-    summary="Mark an enquiry as read (admin only)"
+    summary="Update an enquiry (admin only)"
 )
-def mark_as_read(
+def update_enquiry(
     enquiry_id: int,
+    enquiry_data: EnquiryUpdate,
     db: Session = Depends(get_db),
-    current_admin: User = Depends(get_admin_user)
+    current_admin: User = Depends(get_admin_user),
 ):
-    """Marks an enquiry as read."""
     enquiry = db.query(Enquiry).filter(Enquiry.id == enquiry_id).first()
     if not enquiry:
-        from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Enquiry not found.")
-    enquiry.is_read = True
+
+    if enquiry_data.status is not None:
+        enquiry.status = enquiry_data.status
+        if enquiry_data.status in {"read", "contacted", "closed"}:
+            enquiry.is_read = True
+
+    if enquiry_data.is_read is not None:
+        enquiry.is_read = enquiry_data.is_read
+
+    if enquiry_data.broker_notes is not None:
+        enquiry.broker_notes = enquiry_data.broker_notes
+
     db.commit()
     db.refresh(enquiry)
     return enquiry

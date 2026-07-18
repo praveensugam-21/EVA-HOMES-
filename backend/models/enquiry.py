@@ -11,6 +11,9 @@ class Enquiry(Base):
     email = Column(String(255), nullable=False)
     phone = Column(String(20), nullable=True)
     message = Column(Text, nullable=False)
+    source = Column(String(40), default="form", nullable=False)
+    status = Column(String(40), default="new", nullable=False)
+    broker_notes = Column(Text, nullable=True)
 
     property_id = Column(
         Integer,
@@ -33,4 +36,3 @@ class Enquiry(Base):
 
     def __repr__(self):
         return f"<Enquiry id={self.id} from={self.email}>"
-

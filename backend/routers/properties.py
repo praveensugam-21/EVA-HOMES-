@@ -13,6 +13,7 @@
 
 import math
 from typing import Optional
+from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
@@ -20,9 +21,13 @@ from sqlalchemy.orm import Session
 from database import get_db
 from models.property import ListingType, Property, PropertyImage, PropertyStatus, PropertyType
 from models.user import User
-from routers.auth import get_current_user
+from routers.auth import get_admin_user, get_current_user
+from routers.settings import get_or_create_broker_settings
 from schemas.property import (
+    PropertyAdminItem,
+    PropertyAdminListResponse,
     PropertyCreate,
+    PropertyContactResponse,
     PropertyListItem,
     PropertyListResponse,
     PropertyResponse,
@@ -30,6 +35,21 @@ from schemas.property import (
 )
 
 router = APIRouter(prefix="/api/properties", tags=["Properties"])
+
+
+def mask_phone(phone: Optional[str]) -> Optional[str]:
+    if not phone:
+        return None
+
+    digits = "".join(ch for ch in phone if ch.isdigit())
+    if len(digits) < 6:
+        return "Hidden"
+
+    return f"{digits[:2]}{'X' * (len(digits) - 4)}{digits[-2:]}"
+
+
+def whatsapp_number(phone: str) -> str:
+    return "".join(ch for ch in phone if ch.isdigit())
 
 
 # ============================================================
@@ -158,9 +178,96 @@ def get_featured_properties(
 
 
 # ============================================================
-# ENDPOINT 3: Get Single Property
-# GET /api/properties/{property_id}
+# ENDPOINT 3: Admin Listing Moderation Feed
+# GET /api/properties/admin/all
 # ============================================================
+@router.get(
+    "/admin/all",
+    response_model=PropertyAdminListResponse,
+    summary="Get all properties for admin moderation"
+)
+def admin_list_properties(
+    status_filter: Optional[PropertyStatus] = Query(None, alias="status"),
+    verified: Optional[bool] = Query(None),
+    featured: Optional[bool] = Query(None),
+    search: Optional[str] = Query(None, min_length=2),
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_admin_user),
+):
+    query = db.query(Property)
+
+    if status_filter:
+        query = query.filter(Property.status == status_filter)
+
+    if verified is not None:
+        query = query.filter(Property.is_verified == verified)
+
+    if featured is not None:
+        query = query.filter(Property.is_featured == featured)
+
+    if search:
+        search_term = f"%{search.strip()}%"
+        query = query.filter(
+            Property.title.ilike(search_term) |
+            Property.city.ilike(search_term) |
+            Property.locality.ilike(search_term)
+        )
+
+    properties = query.order_by(Property.created_at.desc()).all()
+    items = [
+        PropertyAdminItem(
+            **PropertyAdminItem.model_validate(prop).model_dump(),
+            owner_name=prop.owner.full_name if prop.owner else None,
+        )
+        for prop in properties
+    ]
+    return PropertyAdminListResponse(items=items, total=len(items))
+
+
+# ============================================================
+# ENDPOINT 4: Get Single Property Contact
+# GET /api/properties/{property_id}/contact
+# ============================================================
+@router.get(
+    "/{property_id}/contact",
+    response_model=PropertyContactResponse,
+    summary="Get safe broker contact details for a property"
+)
+def get_property_contact(property_id: int, db: Session = Depends(get_db)):
+    """
+    Returns public contact details for the property.
+
+    The owner's full phone is intentionally not returned. Visitors contact
+    the broker desk, while the owner phone is shown only in masked form.
+    """
+    prop = db.query(Property).filter(Property.id == property_id).first()
+
+    if not prop:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Property with ID {property_id} not found."
+        )
+
+    broker_settings = get_or_create_broker_settings(db)
+    message = (
+        f"Hi {broker_settings.broker_name}, I am interested in property #{prop.id}: "
+        f"{prop.title} in {prop.locality + ', ' if prop.locality else ''}{prop.city}."
+    )
+    whatsapp_link = (
+        f"https://wa.me/{whatsapp_number(broker_settings.broker_whatsapp)}"
+        f"?text={quote(message)}"
+    )
+
+    return PropertyContactResponse(
+        property_id=prop.id,
+        owner_name=prop.owner.full_name if prop.owner else None,
+        owner_phone_masked=mask_phone(prop.owner.phone if prop.owner else None),
+        broker_name=broker_settings.broker_name,
+        broker_phone=broker_settings.broker_phone,
+        whatsapp_link=whatsapp_link,
+    )
+
+
 @router.get(
     "/{property_id}",
     response_model=PropertyResponse,
@@ -310,6 +417,13 @@ def update_property(
     # Apply updates — only update fields that were actually sent
     # model_dump(exclude_unset=True) gives only fields the client sent
     update_data = updates.model_dump(exclude_unset=True)
+    moderation_only_fields = {"is_verified", "is_featured"}
+    if not current_user.is_admin and moderation_only_fields.intersection(update_data):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin can update verification or featured status."
+        )
+
     for field, value in update_data.items():
         setattr(prop, field, value)  # prop.title = "New Title" etc.
 

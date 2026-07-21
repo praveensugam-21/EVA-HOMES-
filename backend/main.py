@@ -64,10 +64,19 @@ def ensure_property_status_values():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    Base.metadata.create_all(bind=engine)
-    ensure_enquiry_columns()
-    ensure_property_status_values()
+    try:
+        Base.metadata.create_all(bind=engine)
+        ensure_enquiry_columns()
+        ensure_property_status_values()
+        try:
+            from seed import seed
+            seed()
+        except Exception as seed_err:
+            print(f"[Lifespan Seed Error]: {seed_err}")
+    except Exception as err:
+        print(f"[Lifespan Startup Error]: {err}")
     yield
+
 
 app = FastAPI(
     title=settings.APP_NAME,

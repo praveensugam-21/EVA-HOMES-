@@ -1,5 +1,10 @@
 import os
+import sys
 from contextlib import asynccontextmanager
+
+# Add the backend directory to sys.path so nested imports work seamlessly on Vercel
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
@@ -9,8 +14,13 @@ from database import Base, engine
 import models
 from routers import auth, cities, enquiries, properties, settings as settings_router
 
+
 # Ensure static/uploads folder exists at startup before mounting
-os.makedirs(os.path.join("static", "uploads"), exist_ok=True)
+try:
+    os.makedirs(os.path.join("static", "uploads"), exist_ok=True)
+except OSError:
+    pass
+
 
 
 def ensure_enquiry_columns():

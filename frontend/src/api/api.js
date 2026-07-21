@@ -20,8 +20,9 @@ import axios from "axios";
 
 // The base URL of our FastAPI backend
 // In development: http://localhost:8000
-// In production: your deployed API URL
-const BASE_URL = "http://localhost:8000";
+// In production: set VITE_API_BASE_URL env variable (e.g. https://your-backend.onrender.com)
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
+
 
 // ---- CREATE AXIOS INSTANCE ----
 // Instead of using axios directly, we create a configured instance.

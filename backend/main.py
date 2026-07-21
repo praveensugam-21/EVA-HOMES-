@@ -32,10 +32,24 @@ def ensure_enquiry_columns():
                 connection.execute(text(statement))
 
 
+def ensure_property_status_values():
+    """
+    SQLite stores enum values as strings. Since we added 'pending' and 'rejected'
+    to PropertyStatus, existing rows are fine — SQLite won't reject them.
+    This migration ensures new rows default to 'pending' by running a
+    no-op check. (The actual default is set in the ORM model.)
+    """
+    inspector = inspect(engine)
+    if "properties" not in inspector.get_table_names():
+        return
+    # Nothing to ALTER for SQLite enums — string values work transparently.
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     ensure_enquiry_columns()
+    ensure_property_status_values()
     yield
 
 app = FastAPI(
@@ -48,19 +62,24 @@ app = FastAPI(
 )
 
 # CORS configuration
+allowed_origins_env = os.getenv("ALLOWED_ORIGINS", "")
+custom_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
+    allow_origins=custom_origins if custom_origins else [
         "http://localhost:5173",
         "http://localhost:5174",
         "http://localhost:3000",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:5174",
     ],
+    allow_origin_regex=r"https?://.*" if not custom_origins else None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 # Security Headers Middleware
 @app.middleware("http")

@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
@@ -71,9 +72,9 @@ def submit_enquiry(
     summary="Get all enquiries (admin only)"
 )
 def list_enquiries(
-    status_filter: str | None = Query(None, alias="status"),
+    status_filter: Optional[str] = Query(None, alias="status"),
     unread_only: bool = Query(False),
-    search: str | None = Query(None, min_length=2),
+    search: Optional[str] = Query(None, min_length=2),
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_admin_user),
 ):

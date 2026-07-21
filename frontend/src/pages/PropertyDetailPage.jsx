@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaBed, FaBath, FaRulerCombined, FaMapMarkerAlt, FaCheckCircle, FaSpinner, FaCar, FaMap, FaPhoneAlt, FaWhatsapp, FaUserShield } from "react-icons/fa";
+import { FaBed, FaBath, FaRulerCombined, FaMapMarkerAlt, FaCheckCircle, FaSpinner, FaCar, FaMap, FaPhoneAlt, FaWhatsapp, FaUserShield, FaTrash, FaExclamationTriangle, FaTimes, FaClock } from "react-icons/fa";
 import { propertiesAPI, enquiriesAPI } from "../api/api";
+import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
 export default function PropertyDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
 
   const [property, setProperty] = useState(null);
   const [contact, setContact] = useState(null);
@@ -18,6 +20,11 @@ export default function PropertyDetailPage() {
   const [enquiryStatus, setEnquiryStatus] = useState(""); // "success" | "error" | ""
   const [enquiryError, setEnquiryError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Delete state
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   useEffect(() => {
     const loadProperty = async () => {
@@ -62,6 +69,18 @@ export default function PropertyDetailPage() {
     }
   };
 
+  const handleDelete = async () => {
+    setIsDeleting(true);
+    setDeleteError("");
+    try {
+      await propertiesAPI.delete(id);
+      navigate("/listings");
+    } catch (err) {
+      setDeleteError(err.response?.data?.detail || "Failed to delete listing.");
+      setIsDeleting(false);
+    }
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-white">
@@ -71,6 +90,12 @@ export default function PropertyDetailPage() {
   }
 
   if (!property) return null;
+
+  const isOwner = user && property.owner_id === user.id;
+  const isAdmin = user?.is_admin;
+  const canDelete = isOwner || isAdmin;
+  const isPending = property.status === "pending";
+  const isRejected = property.status === "rejected";
 
   // Build the list of photos for the gallery picker
   const galleryPhotos = [
@@ -95,8 +120,65 @@ export default function PropertyDetailPage() {
 
   return (
     <div className="min-h-screen bg-white">
+      {/* Delete Confirmation Modal */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setShowDeleteModal(false)} />
+          <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-zinc-200">
+            <button onClick={() => setShowDeleteModal(false)} className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-700 transition">
+              <FaTimes />
+            </button>
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
+                <FaExclamationTriangle className="text-red-600" />
+              </div>
+              <h2 className="text-lg font-bold text-zinc-900">Delete Listing</h2>
+            </div>
+            <p className="text-sm text-zinc-600 mb-1">Are you sure you want to permanently delete:</p>
+            <p className="text-sm font-semibold text-zinc-900 mb-4">"{property.title}"</p>
+            <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-5">
+              This action is permanent. All photos and enquiries for this property will also be removed.
+            </p>
+            {deleteError && <p className="text-xs text-red-600 mb-3">{deleteError}</p>}
+            <div className="flex gap-3">
+              <button onClick={() => setShowDeleteModal(false)}
+                className="flex-1 border border-zinc-200 hover:border-zinc-400 text-zinc-700 text-sm font-semibold py-2.5 rounded-lg transition">
+                Cancel
+              </button>
+              <button onClick={handleDelete} disabled={isDeleting}
+                className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-60 text-white text-sm font-semibold py-2.5 rounded-lg transition flex items-center justify-center gap-2">
+                {isDeleting ? <><FaSpinner className="animate-spin" /> Deleting...</> : <><FaTrash className="text-xs" /> Delete</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <Navbar />
       <div className="pt-24 pb-16 max-w-7xl mx-auto px-6">
+        {/* Pending / Rejected banner for owner */}
+        {(isPending || isRejected) && (isOwner || isAdmin) && (
+          <div className={`mb-5 rounded-xl border px-5 py-4 flex items-start gap-3 ${
+            isPending ? "bg-amber-50 border-amber-200" : "bg-red-50 border-red-200"
+          }`}>
+            {isPending ? (
+              <FaClock className="text-amber-500 text-lg shrink-0 mt-0.5" />
+            ) : (
+              <FaExclamationTriangle className="text-red-500 text-lg shrink-0 mt-0.5" />
+            )}
+            <div>
+              <p className={`text-sm font-bold ${ isPending ? "text-amber-800" : "text-red-800" }`}>
+                {isPending ? "Awaiting Admin Approval" : "Listing Rejected"}
+              </p>
+              <p className={`text-xs mt-0.5 ${ isPending ? "text-amber-700" : "text-red-700" }`}>
+                {isPending
+                  ? "Your listing has been submitted and is under review. It will appear in public search results once approved."
+                  : "This listing was not approved. Please contact the admin for more information or delete and re-submit."}
+              </p>
+            </div>
+          </div>
+        )}
+
         <div className="mb-6">
           <div className="flex flex-wrap items-center gap-2 mb-2">
             <span className="bg-zinc-900 text-white text-[10px] font-bold tracking-wider uppercase px-2.5 py-0.5 rounded capitalize">
@@ -107,6 +189,16 @@ export default function PropertyDetailPage() {
                 <FaCheckCircle className="text-[10px]" /> VERIFIED
               </span>
             )}
+            {isPending && (
+              <span className="bg-amber-100 text-amber-700 text-[10px] font-bold tracking-wider px-2.5 py-0.5 rounded">
+                PENDING REVIEW
+              </span>
+            )}
+            {isRejected && (
+              <span className="bg-red-100 text-red-700 text-[10px] font-bold tracking-wider px-2.5 py-0.5 rounded">
+                REJECTED
+              </span>
+            )}
             <span className="text-zinc-400 text-xs capitalize bg-zinc-50 px-2 py-0.5 rounded">{property.property_type}</span>
           </div>
           <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-zinc-900">{property.title}</h1>
@@ -114,6 +206,16 @@ export default function PropertyDetailPage() {
             <FaMapMarkerAlt className="text-zinc-400" />
             {property.locality ? `${property.locality}, ` : ""}{property.city}
           </p>
+          {/* Owner / Admin delete button */}
+          {canDelete && (
+            <button
+              onClick={() => setShowDeleteModal(true)}
+              className="mt-3 inline-flex items-center gap-2 text-xs font-semibold text-red-600 hover:text-red-800 bg-red-50 hover:bg-red-100 border border-red-200 px-3 py-1.5 rounded-lg transition"
+            >
+              <FaTrash className="text-[10px]" />
+              Delete this Listing
+            </button>
+          )}
         </div>
 
         <div className="grid lg:grid-cols-3 gap-8">

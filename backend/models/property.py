@@ -20,7 +20,9 @@ class ListingType(str, enum.Enum):
     COMMERCIAL = "commercial"
 
 class PropertyStatus(str, enum.Enum):
+    PENDING = "pending"    # Awaiting admin approval
     ACTIVE = "active"
+    REJECTED = "rejected"  # Admin rejected the listing
     SOLD = "sold"
     RENTED = "rented"
     INACTIVE = "inactive"
@@ -39,7 +41,7 @@ class Property(Base):
 
     property_type = Column(Enum(PropertyType), default=PropertyType.APARTMENT, nullable=False)
     listing_type = Column(Enum(ListingType), default=ListingType.BUY, nullable=False)
-    status = Column(Enum(PropertyStatus), default=PropertyStatus.ACTIVE, nullable=False)
+    status = Column(Enum(PropertyStatus), default=PropertyStatus.PENDING, nullable=False)
 
     bedrooms = Column(Integer, nullable=True)
     bathrooms = Column(Integer, nullable=True)

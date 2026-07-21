@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -147,9 +148,9 @@ def get_my_profile(current_user: User = Depends(get_current_user)):
     summary="Get all users (admin only)"
 )
 def list_users(
-    search: str | None = Query(None, min_length=2),
-    active: bool | None = Query(None),
-    admin_only: bool | None = Query(None, alias="is_admin"),
+    search: Optional[str] = Query(None, min_length=2),
+    active: Optional[bool] = Query(None),
+    admin_only: Optional[bool] = Query(None, alias="is_admin"),
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_admin_user),
 ):

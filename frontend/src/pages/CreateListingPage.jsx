@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaHome, FaUpload, FaSpinner, FaTimes, FaMapMarkerAlt, FaMagic } from "react-icons/fa";
+import { FaHome, FaUpload, FaSpinner, FaTimes, FaMapMarkerAlt, FaMagic, FaClock, FaCheckCircle } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
 import { propertiesAPI } from "../api/api";
 import Navbar from "../components/Navbar";
@@ -45,6 +45,7 @@ export default function CreateListingPage() {
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [submittedProperty, setSubmittedProperty] = useState(null); // set after successful submit
 
   // Uploading states
   const [thumbnailUploading, setThumbnailUploading] = useState(false);
@@ -208,7 +209,7 @@ export default function CreateListingPage() {
 
     try {
       const newProperty = await propertiesAPI.create(payload);
-      navigate(`/properties/${newProperty.id}`);
+      setSubmittedProperty(newProperty);
     } catch (err) {
       const msg = err.response?.data?.detail || "Failed to create listing. Please verify input fields.";
       setError(Array.isArray(msg) ? "Validation Error. Check form fields." : msg);
@@ -249,6 +250,53 @@ export default function CreateListingPage() {
       </div>
     );
   };
+
+  // ── Success screen shown after submission ────────────────────────────────
+  if (submittedProperty) {
+    return (
+      <div className="min-h-screen bg-white">
+        <Navbar />
+        <div className="pt-24 pb-16 max-w-lg mx-auto px-6 flex flex-col items-center text-center">
+          <div className="w-16 h-16 rounded-2xl bg-amber-100 flex items-center justify-center mb-5">
+            <FaClock className="text-amber-600 text-2xl" />
+          </div>
+          <h1 className="text-2xl font-bold text-zinc-900 mb-2">Listing Submitted for Review</h1>
+          <p className="text-zinc-500 text-sm leading-relaxed mb-6">
+            Your property <span className="font-semibold text-zinc-900">"{submittedProperty.title}"</span> has been
+            submitted successfully. It will be visible in public search results once an admin approves it.
+          </p>
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-5 py-4 text-left w-full mb-6">
+            <div className="flex items-start gap-3">
+              <FaCheckCircle className="text-amber-500 mt-0.5 shrink-0" />
+              <div>
+                <p className="text-sm font-semibold text-amber-800">What happens next?</p>
+                <ul className="text-xs text-amber-700 mt-1 space-y-1 list-disc list-inside">
+                  <li>Admin will review your listing details and photos</li>
+                  <li>Once approved, it will go live and appear in search results</li>
+                  <li>If rejected, you will see a notice when viewing your listing</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+          <div className="flex flex-col sm:flex-row gap-3 w-full">
+            <button
+              onClick={() => navigate(`/properties/${submittedProperty.id}`)}
+              className="flex-1 bg-zinc-900 hover:bg-zinc-800 text-white text-sm font-semibold py-3 rounded-lg transition"
+            >
+              View My Listing
+            </button>
+            <button
+              onClick={() => navigate("/listings")}
+              className="flex-1 border border-zinc-200 hover:border-zinc-400 text-zinc-700 text-sm font-semibold py-3 rounded-lg transition"
+            >
+              Browse Listings
+            </button>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    );
+  }
 
   if (!isLoggedIn) {
     return (

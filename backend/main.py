@@ -1,9 +1,16 @@
 import os
 import sys
+
+# Ensure backend directory and root directory are in sys.path
+backend_dir = os.path.dirname(os.path.abspath(__file__))
+root_dir = os.path.abspath(os.path.join(backend_dir, ".."))
+if backend_dir not in sys.path:
+    sys.path.insert(0, backend_dir)
+if root_dir not in sys.path:
+    sys.path.insert(0, root_dir)
+
 from contextlib import asynccontextmanager
 
-# Add the backend directory to sys.path so nested imports work seamlessly on Vercel
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware

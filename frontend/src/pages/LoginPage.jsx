@@ -118,11 +118,7 @@ export default function LoginPage() {
             </Link>
           </p>
 
-          <div className="mt-6 bg-zinc-50 border border-zinc-150 rounded-lg p-3.5 text-[11px] text-zinc-500">
-            <p className="font-semibold text-zinc-700 mb-1">Demo Credentials:</p>
-            <p>Email: rahul@example.com</p>
-            <p>Password: password123</p>
-          </div>
+
         </div>
       </div>
     </div>

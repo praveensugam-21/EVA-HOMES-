@@ -32,5 +32,6 @@ python-multipart==0.0.9
 python-dotenv==1.0.1
 
 # AIOFILES — for async file operations
-aiofiles==24.1.0
+# PostgreSQL Driver
+psycopg2-binary==2.9.9
 

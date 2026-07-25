@@ -5,6 +5,9 @@ from sqlalchemy.orm import sessionmaker
 from core.config import settings
 
 db_url = settings.DATABASE_URL
+if db_url.startswith("postgres://"):
+    db_url = db_url.replace("postgres://", "postgresql://", 1)
+
 if os.getenv("VERCEL") and "sqlite" in db_url and not db_url.startswith("sqlite:////tmp/"):
     db_url = "sqlite:////tmp/eva_homes.db"
 

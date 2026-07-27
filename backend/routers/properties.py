@@ -535,6 +535,17 @@ def update_property(
             detail="Only admin can update verification or featured status."
         )
 
+    # Owners may still delist their own property (sold/rented/inactive), but
+    # only admin can approve (active), reject, or re-queue (pending) a
+    # listing — otherwise a seller could bypass moderation entirely by just
+    # PUTing status="active" straight after creating it.
+    admin_only_statuses = {PropertyStatus.ACTIVE, PropertyStatus.REJECTED, PropertyStatus.PENDING}
+    if not current_user.is_admin and update_data.get("status") in admin_only_statuses:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admin can approve, reject, or re-queue a listing.",
+        )
+
     for field, value in update_data.items():
         setattr(prop, field, value)  # prop.title = "New Title" etc.
 
@@ -586,7 +597,7 @@ def delete_property(
 import uuid
 import shutil
 import os
-from fastapi import File, UploadFile
+from fastapi import File, Request, UploadFile
 
 # ============================================================
 # ENDPOINT 7: Upload Image (PROTECTED — login required)
@@ -598,6 +609,7 @@ from fastapi import File, UploadFile
     status_code=status.HTTP_200_OK
 )
 async def upload_image(
+    request: Request,
     file: UploadFile = File(...),
     current_user: User = Depends(get_seller_user)
 ):
@@ -632,8 +644,10 @@ async def upload_image(
             detail=f"Could not save file: {str(e)}"
         )
 
-    # Return local static URL
+    # Build the URL from the actual request instead of hardcoding localhost,
+    # so it resolves correctly in every environment (dev, Render, etc.)
+    base_url = str(request.base_url).rstrip("/")
     return {
-        "url": f"http://localhost:8000/static/uploads/{unique_filename}"
+        "url": f"{base_url}/static/uploads/{unique_filename}"
     }
 

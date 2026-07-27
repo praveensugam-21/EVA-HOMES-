@@ -1,98 +1,134 @@
 # EVA Homes
 
-EVA Homes is a full-stack real estate platform for browsing, searching, listing, and enquiring about residential and commercial properties.
+EVA Homes is a full-stack, broker-mediated real estate marketplace — buyers browse and enquire, sellers list and manage properties, and every buyer-seller contact is routed through a broker layer rather than direct.
 
 The project is split into a React frontend and a FastAPI backend.
 
 ## Tech Stack
 
-- Frontend: React, Vite, Tailwind CSS, React Router, Axios
-- Backend: FastAPI, SQLAlchemy, Pydantic, SQLite
-- Authentication: JWT based login and registration
-- File uploads: property images served through the backend static folder
+- **Frontend:** React 19, Vite, Tailwind CSS, React Router, Axios
+- **Backend:** FastAPI, SQLAlchemy, Pydantic, Alembic (migrations)
+- **Database:** SQLite locally, Postgres-ready for production (`DATABASE_URL`)
+- **Auth:** JWT (email/password) + Google Sign-In (OAuth ID token)
+- **Testing:** pytest (backend smoke suite), GitHub Actions CI
 
 ## Project Structure
 
 ```text
 eva-homes/
   README.md
-  ERROR.md
+  render.yaml
+  .github/workflows/backend-tests.yml
+  docs/
+    PROJECT_GUIDE.md
+    BROKER_CONTACT_FLOW.md
+    CHANGELOG.md
+    ERROR.md
+    pro.md
 
   backend/
-    main.py
-    database.py
-    seed.py
+    main.py                 FastAPI app setup, CORS, security headers, startup
+    database.py              SQLAlchemy engine/session
+    seed.py                   Dev-only sample data (gated, see below)
     requirements.txt
-    .env
+    requirements-dev.txt       Adds pytest/httpx for running tests
+    pytest.ini
+    alembic.ini
+    alembic/                  Versioned schema migrations
+      env.py
+      versions/
     core/
-    models/
-    routers/
-    schemas/
+      config.py                Settings (env vars)
+      security.py               Password hashing, JWT
+      notify.py                  In-app notification helper
+      rate_limit.py               Per-IP in-memory rate limiter
+    models/                    SQLAlchemy tables
+    routers/                   API endpoints, one file per domain
+    schemas/                   Pydantic request/response models
+    tests/                     pytest smoke suite
     static/
-      uploads/
+      uploads/                 Property images (local disk, dev only)
+      seller_docs/             Seller verification documents (local disk, dev only)
 
   frontend/
     index.html
     package.json
-    package-lock.json
     vite.config.js
     eslint.config.js
+    .env.example
     public/
     src/
-      api/
-      assets/
+      api/api.js               Axios client, one wrapper per backend router
+      context/                 Auth state (AuthContext)
+      layouts/                 Dashboard shell layout
       components/
-      context/
+        dashboard/              Shared dashboard widgets (Sidebar, StatusBadge)
       pages/
+        dashboard/
+          buyer/                 Buyer dashboard pages
+          seller/                 Seller dashboard pages
+          shared/                 Notifications, Settings
+        Admin*.jsx                Admin workspace pages
+        *Page.jsx                 Public pages (Home, Listings, PropertyDetail, Login, Register, ...)
 ```
 
 ## Features
 
-- Browse property listings without logging in
-- Search and filter listings by city, type, price, bedrooms, and keywords
-- View property details and image galleries
-- Register and log in with JWT authentication
-- Create property listings after login
-- Upload property images
-- Submit enquiries for properties
-- Review and manage enquiries from an admin workspace
-- Review and moderate all listings from an admin workspace
-- Manage users, admin access, and account activation from an admin workspace
-- Admin-only broker settings page to edit call and WhatsApp numbers from the website
-- Use FastAPI automatic API documentation for testing endpoints
+**Public / visitor**
+- Browse and filter property listings (city, type, price, bedrooms, keywords)
+- View property details, photo galleries, and a broker-masked contact panel
+- Submit an enquiry without logging in
+
+**Buyer**
+- Register/login with email+password or Google Sign-In
+- Save properties to a shortlist
+- Submit enquiries, request visits, make offers — and track all three from a dashboard
+- Receive in-app replies/notifications when a broker responds or a seller acts on a visit/offer
+
+**Seller** (opt-in on any buyer account)
+- Activate a seller profile and submit verification documents
+- Create and manage listings (each starts `pending` until admin approval)
+- View per-listing analytics, respond to enquiries/visits/offers
+
+**Admin**
+- Approve/reject seller verification
+- Moderate listings (approve, reject, feature, verify)
+- Manage all enquiries site-wide, reply directly to buyers (shows on their dashboard + notification)
+- Manage user accounts (activate/deactivate, promote/demote admin)
+- Edit the site-wide broker contact details (name, phone, WhatsApp)
+
+See `docs/PROJECT_GUIDE.md` for the full walkthrough of each workspace.
 
 ## Backend Setup
 
-Open a terminal from the project root:
-
 ```powershell
 cd F:\eva-homes\backend
-```
-
-Create and activate a virtual environment:
-
-```powershell
 python -m venv venv
 .\venv\Scripts\activate
-```
-
-Install Python dependencies:
-
-```powershell
 pip install -r requirements.txt
 ```
 
-Seed the database with sample data:
+Create `backend/.env` (not tracked in git — copy the values you need):
 
-```powershell
-python seed.py
+```env
+DATABASE_URL=sqlite:///./eva_homes.db
+SECRET_KEY=<generate a random string>
+ALGORITHM=HS256
+ACCESS_TOKEN_EXPIRE_MINUTES=10080
+APP_NAME=EVA Homes API
+APP_VERSION=1.0.0
+DEBUG=True
+GOOGLE_CLIENT_ID=<optional — from Google Cloud Console, leave blank to disable Google Sign-In>
 ```
 
-Run the FastAPI backend:
+Apply migrations, then run the server:
 
 ```powershell
+alembic upgrade head
 uvicorn main:app --reload
 ```
+
+With `DEBUG=True`, the app auto-seeds sample data (users, properties) on first startup — see [Test Accounts](#test-accounts) below. In production (`DEBUG=false`), auto-seed is skipped unless `SEED_DB=true` is also set.
 
 Backend URLs:
 
@@ -103,159 +139,95 @@ Docs: http://127.0.0.1:8000/docs
 
 ## Frontend Setup
 
-Open a second terminal from the project root:
-
 ```powershell
 cd F:\eva-homes\frontend
-```
-
-Install Node dependencies:
-
-```powershell
 npm install
 ```
 
-Run the Vite development server:
+Create `frontend/.env`:
+
+```env
+VITE_API_BASE_URL=http://localhost:8000
+VITE_GOOGLE_CLIENT_ID=<optional — must match backend's GOOGLE_CLIENT_ID>
+```
+
+Run the dev server:
 
 ```powershell
 npm run dev
 ```
 
-Frontend URL:
+Frontend URL: `http://localhost:5173`
 
-```text
-http://localhost:5173
-```
-
-## Normal Development Workflow
-
-Use two terminals while developing:
-
-```text
-Terminal 1: backend server
-Terminal 2: frontend server
-```
-
-Backend:
+## Running Tests
 
 ```powershell
 cd F:\eva-homes\backend
 .\venv\Scripts\activate
-uvicorn main:app --reload
+pip install -r requirements.txt -r requirements-dev.txt
+pytest -q
 ```
 
-Frontend:
+The same suite runs automatically in CI (`.github/workflows/backend-tests.yml`) on every push/PR to `main`.
 
-```powershell
-cd F:\eva-homes\frontend
-npm run dev
-```
+## Database Migrations
 
-React runs in the browser on port `5173`. FastAPI runs on port `8000`.
-
-## Test Login
-
-After running `python seed.py`, use this sample account:
-
-```text
-Email: rahul@example.com
-Password: password123
-```
-
-Use it to log in and create a property listing.
-
-Admin account for broker settings:
-
-```text
-Email: admin@evahomes.com
-Password: admin123
-```
-
-## Important Commands
-
-Backend:
+Schema changes go through Alembic, not manual edits:
 
 ```powershell
 cd F:\eva-homes\backend
-.\venv\Scripts\activate
-python seed.py
-uvicorn main:app --reload
+alembic revision --autogenerate -m "describe the change"
+alembic upgrade head
 ```
 
-Frontend:
+`render.yaml`'s build step runs `alembic upgrade head` automatically before each deploy.
 
-```powershell
-cd F:\eva-homes\frontend
-npm install
-npm run dev
-npm run build
-npm run lint
-```
+## Test Accounts
 
-## API Testing
-
-FastAPI provides interactive API docs:
+After the backend auto-seeds (`DEBUG=True`, first run only — it skips if the database already has users):
 
 ```text
-http://127.0.0.1:8000/docs
+Admin: admin@evahomes.com / admin123
+User:  rahul@example.com / password123
+User:  priya@example.com / password123
 ```
 
-You can test routes such as:
+**Change or remove these before deploying anywhere real** — they're dev-only, and auto-seed is disabled in production by default (see Backend Setup above).
+
+## Image & Document Uploads
+
+Property images and seller verification documents are currently stored on local disk:
 
 ```text
-GET  /health
-POST /api/auth/register
-POST /api/auth/login
-GET  /api/properties
-GET  /api/properties/admin/all
-GET  /api/auth/users
-PUT  /api/auth/users/{id}
-POST /api/properties
-POST /api/properties/upload-image
-GET  /api/cities
-POST /api/enquiries
-GET  /api/enquiries
-PUT  /api/enquiries/{id}
+backend/static/uploads/       property images
+backend/static/seller_docs/    seller verification documents
 ```
 
-## Image Uploads
-
-Uploaded property images are stored in:
-
-```text
-backend/static/uploads/
-```
-
-The backend serves them from:
-
-```text
-http://localhost:8000/static/uploads/<filename>
-```
+This works for local development but **does not survive a real cloud deploy** (Render/Vercel disks are ephemeral) — moving to S3/Cloudinary/R2 is a known follow-up, not yet done.
 
 ## Notes For Developers
 
-- Run backend commands from the `backend` folder so SQLite and static paths resolve correctly.
-- Run frontend commands from the `frontend` folder because `package.json` is located there.
-- Do not commit virtual environments, `node_modules`, local `.env` files, generated database files, or build output.
-- Keep this root README as the main project documentation.
+- Run backend commands from `backend/` so relative paths (SQLite file, `static/`) resolve correctly.
+- Run frontend commands from `frontend/` (that's where `package.json` lives).
+- Never commit `.env` files, `venv/`, `node_modules/`, the SQLite database, or build output — all covered by `.gitignore`.
+- New schema changes: use Alembic (see above), not manual `ALTER TABLE`.
 
 ## Additional Guides
 
-- `PROJECT_GUIDE.md` explains the full project structure, setup, and development workflow.
-- `BROKER_CONTACT_FLOW.md` explains the broker-assisted contact model, masked owner phone flow, and enquiry lead tracking.
+All in `docs/`:
+
+- `docs/PROJECT_GUIDE.md` — full walkthrough of every workspace (buyer/seller/admin) and API routes.
+- `docs/BROKER_CONTACT_FLOW.md` — the broker-assisted contact model and masked owner phone flow.
+- `docs/CHANGELOG.md` — running summary of what changed and why, session by session.
+- `docs/ERROR.md` — log of runtime errors/bugs encountered during development and how they were fixed.
+- `docs/pro.md` — plain-English walkthrough of the product: what it is, how each role's journey works, and its business logic.
+- `docs/tobedone.md` — checklist: what's done, what's missing, and the exact deploy steps in order.
 
 ## Build
-
-Create a production frontend build:
 
 ```powershell
 cd F:\eva-homes\frontend
 npm run build
-```
-
-Preview the production build locally:
-
-```powershell
 npm run preview
 ```
 

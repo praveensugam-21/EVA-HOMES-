@@ -84,6 +84,22 @@ export function AuthProvider({ children }) {
     return userProfile;
   }, []);
 
+  // ---- GOOGLE LOGIN FUNCTION ----
+  // Called from LoginPage with the ID token Google's button returns.
+  // Mirrors login() — the backend either finds or creates the account.
+  const googleLogin = useCallback(async (credential) => {
+    const tokenData = await authAPI.google(credential);
+
+    localStorage.setItem("eva_token", tokenData.access_token);
+    setToken(tokenData.access_token);
+
+    const userProfile = await authAPI.getMyProfile();
+    localStorage.setItem("eva_user", JSON.stringify(userProfile));
+    setUser(userProfile);
+
+    return userProfile;
+  }, []);
+
   // ---- LOGOUT FUNCTION ----
   // Clears all auth state. No API call needed — JWT is stateless.
   const logout = useCallback(() => {
@@ -117,6 +133,7 @@ export function AuthProvider({ children }) {
     isLoading,      // true while checking localStorage on startup
     isLoggedIn: !!user, // convenient boolean shorthand
     login,          // function(email, password)
+    googleLogin,    // function(googleCredential)
     logout,         // function()
     register,       // function(userData)
     refreshUser,    // function() — re-syncs user profile from server

@@ -57,10 +57,31 @@ class EnquiryResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class EnquiryNoteOut(BaseModel):
+    id: int
+    text: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class EnquiryNoteCreate(BaseModel):
+    text: str = Field(min_length=1, max_length=2000)
+
+    @field_validator("text")
+    @classmethod
+    def strip_text(cls, value: str) -> str:
+        cleaned = value.strip()
+        if not cleaned:
+            raise ValueError("Note cannot be empty.")
+        return cleaned
+
+
 class EnquiryAdminItem(EnquiryResponse):
     property_title: Optional[str] = None
     property_city: Optional[str] = None
     property_locality: Optional[str] = None
+    notes: list[EnquiryNoteOut] = []
 
 
 class EnquiryListResponse(BaseModel):

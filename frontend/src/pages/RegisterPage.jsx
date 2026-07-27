@@ -1,8 +1,10 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FaHome, FaUser, FaEnvelope, FaLock, FaPhone, FaSpinner } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getErrorMessage } from "../api/api";
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -14,8 +16,54 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { register } = useAuth();
+  const { register, googleLogin } = useAuth();
   const navigate = useNavigate();
+  const googleButtonRef = useRef(null);
+
+  // Same Google Identity Services wiring as LoginPage — a new account signing
+  // up with Google goes straight through (the backend creates it on the fly).
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+    let cancelled = false;
+
+    const tryInit = () => {
+      if (cancelled) return;
+      if (!window.google?.accounts?.id) {
+        setTimeout(tryInit, 100);
+        return;
+      }
+
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: async (response) => {
+          setError("");
+          setIsSubmitting(true);
+          try {
+            await googleLogin(response.credential);
+            navigate("/");
+          } catch (err) {
+            setError(getErrorMessage(err, "Google sign-in failed. Please try again."));
+          } finally {
+            setIsSubmitting(false);
+          }
+        },
+      });
+
+      if (googleButtonRef.current) {
+        window.google.accounts.id.renderButton(googleButtonRef.current, {
+          theme: "outline",
+          size: "large",
+          width: 336,
+          text: "signup_with",
+        });
+      }
+    };
+
+    tryInit();
+    return () => {
+      cancelled = true;
+    };
+  }, [googleLogin, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -105,6 +153,17 @@ export default function RegisterPage() {
               )}
             </button>
           </form>
+
+          {GOOGLE_CLIENT_ID && (
+            <>
+              <div className="flex items-center gap-3 my-5">
+                <div className="h-px bg-zinc-100 flex-1" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">or</span>
+                <div className="h-px bg-zinc-100 flex-1" />
+              </div>
+              <div ref={googleButtonRef} className="flex justify-center" />
+            </>
+          )}
 
           <p className="text-center text-zinc-550 mt-6 text-xs font-medium">
             Already have an account?{" "}

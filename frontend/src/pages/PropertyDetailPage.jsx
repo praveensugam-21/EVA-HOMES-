@@ -569,6 +569,13 @@ export default function PropertyDetailPage() {
                   <FaCheckCircle className="text-emerald-600 text-3xl mx-auto mb-2" />
                   <p className="font-bold text-emerald-800 text-sm">Enquiry Sent</p>
                   <p className="text-emerald-600 text-xs mt-1">The broker desk will contact you shortly.</p>
+                  <button
+                    type="button"
+                    onClick={() => setEnquiryStatus("")}
+                    className="mt-4 text-sm font-semibold text-emerald-700 hover:text-emerald-900 underline underline-offset-2"
+                  >
+                    Send another message
+                  </button>
                 </div>
               ) : (
                 <form onSubmit={handleEnquirySubmit} className="space-y-4">

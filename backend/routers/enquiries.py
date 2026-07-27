@@ -3,9 +3,11 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from core.notify import notify
 from core.rate_limit import client_identifier, rate_limiter
 from database import get_db
 from models.enquiry import Enquiry
+from models.enquiry_note import EnquiryNote
 from models.property import Property
 from models.user import User
 from routers.auth import get_admin_user, get_current_user, get_current_user_optional
@@ -13,6 +15,8 @@ from schemas.enquiry import (
     EnquiryAdminItem,
     EnquiryCreate,
     EnquiryListResponse,
+    EnquiryNoteCreate,
+    EnquiryNoteOut,
     EnquiryResponse,
     EnquiryUpdate,
 )
@@ -92,6 +96,7 @@ def list_my_enquiries(
             property_title=enquiry.property.title if enquiry.property else None,
             property_city=enquiry.property.city if enquiry.property else None,
             property_locality=enquiry.property.locality if enquiry.property else None,
+            notes=enquiry.notes,
         )
         for enquiry in enquiries
     ]
@@ -120,6 +125,7 @@ def list_received_enquiries(
             property_title=enquiry.property.title if enquiry.property else None,
             property_city=enquiry.property.city if enquiry.property else None,
             property_locality=enquiry.property.locality if enquiry.property else None,
+            notes=enquiry.notes,
         )
         for enquiry in enquiries
     ]
@@ -171,6 +177,7 @@ def list_enquiries(
             property_title=enquiry.property.title if enquiry.property else None,
             property_city=enquiry.property.city if enquiry.property else None,
             property_locality=enquiry.property.locality if enquiry.property else None,
+            notes=enquiry.notes,
         )
         for enquiry in enquiries
     ]
@@ -212,3 +219,37 @@ def update_enquiry(
     db.commit()
     db.refresh(enquiry)
     return enquiry
+
+
+@router.post(
+    "/{enquiry_id}/notes",
+    response_model=EnquiryNoteOut,
+    status_code=status.HTTP_201_CREATED,
+    summary="Add a timestamped broker note to an enquiry (admin only)"
+)
+def add_enquiry_note(
+    enquiry_id: int,
+    note_data: EnquiryNoteCreate,
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_admin_user),
+):
+    enquiry = db.query(Enquiry).filter(Enquiry.id == enquiry_id).first()
+    if not enquiry:
+        raise HTTPException(status_code=404, detail="Enquiry not found.")
+
+    note = EnquiryNote(enquiry_id=enquiry_id, text=note_data.text)
+    db.add(note)
+    db.flush()
+
+    if enquiry.user_id:
+        notify(
+            db,
+            user_id=enquiry.user_id,
+            title="Reply to your enquiry",
+            message=note_data.text,
+            link="/dashboard/buyer/enquiries",
+        )
+
+    db.commit()
+    db.refresh(note)
+    return note

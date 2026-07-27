@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     BROKER_PHONE: str = "+919900612425"
     BROKER_WHATSAPP: str = "+919900612425"
 
+    # --- Google Sign-In ---
+    # OAuth client ID from Google Cloud Console (Credentials > OAuth Client ID > Web application).
+    # Must match the frontend's VITE_GOOGLE_CLIENT_ID — it's the audience checked on every token.
+    GOOGLE_CLIENT_ID: str = ""
+
     @field_validator("DEBUG", mode="before")
     @classmethod
     def parse_debug(cls, value):

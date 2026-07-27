@@ -106,11 +106,19 @@ async def lifespan(app: FastAPI):
         ensure_enquiry_columns()
         ensure_user_columns()
         ensure_property_columns()
-        try:
-            from seed import seed
-            seed()
-        except Exception as seed_err:
-            print(f"[Lifespan Seed Error]: {seed_err}")
+        # Auto-seeding demo data (including a default admin account) is only
+        # for local/dev convenience. In production (DEBUG=false on Render)
+        # it's skipped unless explicitly opted into via SEED_DB=true, so a
+        # fresh production database never gets a publicly-documented
+        # default admin password.
+        if settings.DEBUG or os.getenv("SEED_DB", "").strip().lower() == "true":
+            try:
+                from seed import seed
+                seed()
+            except Exception as seed_err:
+                print(f"[Lifespan Seed Error]: {seed_err}")
+        else:
+            print("[Lifespan] Skipping auto-seed (DEBUG is false and SEED_DB is not set).")
     except Exception as err:
         print(f"[Lifespan Startup Error]: {err}")
     yield
@@ -131,14 +139,13 @@ custom_origins = [o.strip() for o in allowed_origins_env.split(",") if o.strip()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=custom_origins if custom_origins else [
+    allow_origins=custom_origins or [
         "http://localhost:5173",
         "http://localhost:5174",
         "http://localhost:3000",
         "http://127.0.0.1:5173",
         "http://127.0.0.1:5174",
     ],
-    allow_origin_regex=r"https?://.*" if not custom_origins else None,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FaCheckCircle, FaEnvelopeOpenText, FaFilter, FaPhoneAlt, FaSearch, FaSpinner } from "react-icons/fa";
+import { FaCheckCircle, FaEnvelopeOpenText, FaFilter, FaPaperPlane, FaPhoneAlt, FaSearch, FaSpinner } from "react-icons/fa";
 import { Link, Navigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -19,6 +19,8 @@ export default function AdminEnquiriesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeId, setActiveId] = useState(null);
   const [error, setError] = useState("");
+  const [draftNotes, setDraftNotes] = useState({});
+  const [sentId, setSentId] = useState(null);
 
   useEffect(() => {
     if (!isLoggedIn || !user?.is_admin) {
@@ -78,6 +80,30 @@ export default function AdminEnquiriesPage() {
       await refreshEnquiries();
     } catch (err) {
       setError(getErrorMessage(err, "Failed to update enquiry."));
+    } finally {
+      setActiveId(null);
+    }
+  };
+
+  const handleSendNote = async (item) => {
+    const text = (draftNotes[item.id] || "").trim();
+    if (!text) return;
+
+    setActiveId(item.id);
+    setError("");
+    try {
+      const note = await enquiriesAPI.addNote(item.id, text);
+      setDashboard((prev) => ({
+        ...prev,
+        items: prev.items.map((it) =>
+          it.id === item.id ? { ...it, notes: [...(it.notes || []), note] } : it
+        ),
+      }));
+      setDraftNotes((prev) => ({ ...prev, [item.id]: "" }));
+      setSentId(item.id);
+      setTimeout(() => setSentId((current) => (current === item.id ? null : current)), 1800);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to send note."));
     } finally {
       setActiveId(null);
     }
@@ -258,20 +284,52 @@ export default function AdminEnquiriesPage() {
                         </a>
                       </div>
 
-                      <label className="block">
-                        <span className="block text-xs font-semibold text-zinc-500 mb-1.5">Broker Notes</span>
+                      <div>
+                        <span className="block text-xs font-semibold text-zinc-500 mb-1">Reply to buyer</span>
+                        <p className="text-[11px] text-zinc-400 mb-1.5">
+                          {item.user_id
+                            ? "Visible to the buyer on their My Enquiries page, with a notification."
+                            : "This enquiry has no linked account — the buyer can't see replies here. Use Reach Out instead."}
+                        </p>
+
+                        {item.notes && item.notes.length > 0 && (
+                          <div className="space-y-2 mb-2 max-h-40 overflow-y-auto pr-1">
+                            {item.notes.map((note) => (
+                              <div key={note.id} className="rounded-lg bg-zinc-50 border border-zinc-100 px-3 py-2">
+                                <p className="text-sm text-zinc-800 whitespace-pre-line">{note.text}</p>
+                                <p className="text-[11px] text-zinc-400 mt-1">
+                                  {new Date(note.created_at).toLocaleString()}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {sentId === item.id && (
+                          <p className="flex items-center gap-1.5 text-emerald-600 text-xs font-semibold mb-2">
+                            <FaCheckCircle className="text-[10px]" /> Reply sent
+                          </p>
+                        )}
+
                         <textarea
-                          rows={4}
-                          defaultValue={item.broker_notes || ""}
-                          placeholder="Internal notes about follow-up, visit timing, negotiation..."
+                          rows={3}
+                          value={draftNotes[item.id] || ""}
+                          placeholder="Write a reply the buyer will see..."
                           className="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400 resize-none bg-white"
-                          onBlur={(e) => {
-                            if ((item.broker_notes || "") !== e.target.value.trim()) {
-                              handleEnquiryUpdate(item.id, { broker_notes: e.target.value });
-                            }
-                          }}
+                          onChange={(e) =>
+                            setDraftNotes((prev) => ({ ...prev, [item.id]: e.target.value }))
+                          }
                         />
-                      </label>
+                        <button
+                          type="button"
+                          disabled={activeId === item.id || !(draftNotes[item.id] || "").trim()}
+                          onClick={() => handleSendNote(item)}
+                          className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-3 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 transition disabled:opacity-60"
+                        >
+                          {activeId === item.id ? <FaSpinner className="animate-spin text-xs" /> : <FaPaperPlane className="text-xs" />}
+                          Send Reply
+                        </button>
+                      </div>
                     </div>
                   </div>
                 </article>

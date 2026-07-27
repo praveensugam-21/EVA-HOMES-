@@ -1,16 +1,65 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FaHome, FaEnvelope, FaLock, FaSpinner } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getErrorMessage } from "../api/api";
+
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
+  const googleButtonRef = useRef(null);
+
+  // Wait for the Google Identity Services script (loaded in index.html) to be
+  // ready, then render its button into our div. Polls briefly since the
+  // script tag is async and may not have executed yet on first render.
+  useEffect(() => {
+    if (!GOOGLE_CLIENT_ID) return;
+    let cancelled = false;
+
+    const tryInit = () => {
+      if (cancelled) return;
+      if (!window.google?.accounts?.id) {
+        setTimeout(tryInit, 100);
+        return;
+      }
+
+      window.google.accounts.id.initialize({
+        client_id: GOOGLE_CLIENT_ID,
+        callback: async (response) => {
+          setError("");
+          setIsSubmitting(true);
+          try {
+            await googleLogin(response.credential);
+            navigate("/");
+          } catch (err) {
+            setError(getErrorMessage(err, "Google sign-in failed. Please try again."));
+          } finally {
+            setIsSubmitting(false);
+          }
+        },
+      });
+
+      if (googleButtonRef.current) {
+        window.google.accounts.id.renderButton(googleButtonRef.current, {
+          theme: "outline",
+          size: "large",
+          width: 336,
+          text: "continue_with",
+        });
+      }
+    };
+
+    tryInit();
+    return () => {
+      cancelled = true;
+    };
+  }, [googleLogin, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -111,6 +160,17 @@ export default function LoginPage() {
               )}
             </button>
           </form>
+
+          {GOOGLE_CLIENT_ID && (
+            <>
+              <div className="flex items-center gap-3 my-5">
+                <div className="h-px bg-zinc-100 flex-1" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">or</span>
+                <div className="h-px bg-zinc-100 flex-1" />
+              </div>
+              <div ref={googleButtonRef} className="flex justify-center" />
+            </>
+          )}
 
           <p className="text-center text-zinc-550 mt-6 text-xs font-medium">
             Don't have an account?{" "}

@@ -6,8 +6,11 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
 from sqlalchemy.orm import Session
 
+from core.config import settings
 from core.rate_limit import client_identifier, rate_limiter
 from core.security import create_access_token, decode_access_token, hash_password, verify_password
 from database import get_db
@@ -18,6 +21,7 @@ from models.notification_preference import NotificationPreference
 from models.otp_code import OTPCode
 from schemas.notification import NotificationPreferenceResponse, NotificationPreferenceUpdate
 from schemas.user import (
+    GoogleLogin,
     OTPRequestResponse,
     OTPVerifyRequest,
     PasswordChange,
@@ -201,6 +205,79 @@ def login(
     return Token(access_token=access_token, token_type="bearer")
 
 
+@router.post(
+    "/google",
+    response_model=Token,
+    summary="Sign in (or sign up) with a Google account"
+)
+def google_login(
+    request: Request,
+    payload: GoogleLogin,
+    db: Session = Depends(get_db),
+):
+    """
+    Verifies the ID token Google's Sign-In button hands back to the frontend,
+    then either logs the matching account in or creates a new one — Google
+    has already proven the email is real, so no password/OTP step is needed.
+    """
+    rate_limiter.check(
+        client_identifier(request, "auth-google"),
+        limit=10,
+        window_seconds=300,
+    )
+
+    if not settings.GOOGLE_CLIENT_ID:
+        raise HTTPException(
+            status_code=status.HTTP_501_NOT_IMPLEMENTED,
+            detail="Google Sign-In isn't configured on this server yet.",
+        )
+
+    try:
+        claims = google_id_token.verify_oauth2_token(
+            payload.credential,
+            google_requests.Request(),
+            settings.GOOGLE_CLIENT_ID,
+        )
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired Google sign-in token.",
+        )
+
+    email = claims.get("email")
+    if not email or not claims.get("email_verified"):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Google did not return a verified email address.",
+        )
+
+    user = db.query(User).filter(User.email == email).first()
+    if user is None:
+        # Brand-new account. The random password is never used — this account
+        # can only ever sign in via Google — but hashed_password is NOT NULL.
+        user = User(
+            full_name=claims.get("name") or email.split("@")[0],
+            email=email,
+            hashed_password=hash_password(secrets.token_urlsafe(32)),
+            avatar_url=claims.get("picture"),
+            email_verified=True,
+        )
+        db.add(user)
+        db.commit()
+        db.refresh(user)
+    elif not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is deactivated. Contact support."
+        )
+    elif not user.email_verified:
+        user.email_verified = True
+        db.commit()
+
+    access_token = create_access_token(data={"sub": user.email})
+    return Token(access_token=access_token, token_type="bearer")
+
+
 @router.get(
     "/me",
     response_model=UserResponse,
@@ -326,9 +403,15 @@ def _issue_otp(db: Session, user: User, channel: str) -> tuple[str, "OTPCode"]:
     summary="Request an OTP to verify the current user's phone number"
 )
 def request_phone_otp(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    rate_limiter.check(
+        client_identifier(request, "otp-request-phone"),
+        limit=5,
+        window_seconds=300,
+    )
     if not current_user.phone:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Add a phone number to your profile first.")
     code, otp = _issue_otp(db, current_user, "phone")
@@ -342,9 +425,15 @@ def request_phone_otp(
     summary="Request an OTP to verify the current user's email address"
 )
 def request_email_otp(
+    request: Request,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    rate_limiter.check(
+        client_identifier(request, "otp-request-email"),
+        limit=5,
+        window_seconds=300,
+    )
     code, otp = _issue_otp(db, current_user, "email")
     # TODO: send via provider (e.g. SES/SendGrid) instead of returning dev_code
     return OTPRequestResponse(channel="email", expires_at=otp.expires_at, dev_code=code)
@@ -381,10 +470,16 @@ def _verify_otp(db: Session, user: User, channel: str, submitted_code: str) -> N
     summary="Verify the current user's phone number with an OTP"
 )
 def verify_phone_otp(
+    request: Request,
     verify_data: OTPVerifyRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    rate_limiter.check(
+        client_identifier(request, "otp-verify-phone"),
+        limit=10,
+        window_seconds=300,
+    )
     _verify_otp(db, current_user, "phone", verify_data.code)
     current_user.phone_verified = True
     db.commit()
@@ -398,10 +493,16 @@ def verify_phone_otp(
     summary="Verify the current user's email address with an OTP"
 )
 def verify_email_otp(
+    request: Request,
     verify_data: OTPVerifyRequest,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    rate_limiter.check(
+        client_identifier(request, "otp-verify-email"),
+        limit=10,
+        window_seconds=300,
+    )
     _verify_otp(db, current_user, "email", verify_data.code)
     current_user.email_verified = True
     db.commit()
@@ -509,6 +610,7 @@ def list_my_seller_documents(
     summary="Upload a seller verification document"
 )
 async def upload_seller_document(
+    request: Request,
     doc_type: str = Query(..., description="e.g. id_proof, address_proof, business_license"),
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -544,10 +646,11 @@ async def upload_seller_document(
         )
 
     seller_profile = current_user.seller_profile
+    base_url = str(request.base_url).rstrip("/")
     document = SellerDocument(
         seller_profile_id=seller_profile.id,
         doc_type=doc_type,
-        file_url=f"http://localhost:8000/static/seller_docs/{unique_filename}",
+        file_url=f"{base_url}/static/seller_docs/{unique_filename}",
     )
     db.add(document)
 

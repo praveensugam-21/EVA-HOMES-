@@ -120,6 +120,16 @@ export const authAPI = {
   },
 
   /**
+   * Sign in (or sign up) with the ID token from Google's "Sign in with Google" button
+   * @param {string} credential
+   * @returns {Object} { access_token, token_type }
+   */
+  google: async (credential) => {
+    const response = await api.post("/api/auth/google", { credential });
+    return response.data;
+  },
+
+  /**
    * Get the currently logged-in user's profile
    * (requires valid token in localStorage)
    */
@@ -236,29 +246,6 @@ export const authAPI = {
     return response.data;
   },
 
-  /** Request an OTP to verify the current user's phone. Dev-mode returns dev_code directly. */
-  requestPhoneOtp: async () => {
-    const response = await api.post("/api/auth/me/phone/request-otp");
-    return response.data;
-  },
-
-  /** Verify the current user's phone with the OTP code. */
-  verifyPhoneOtp: async (code) => {
-    const response = await api.post("/api/auth/me/phone/verify-otp", { code });
-    return response.data;
-  },
-
-  /** Request an OTP to verify the current user's email. Dev-mode returns dev_code directly. */
-  requestEmailOtp: async () => {
-    const response = await api.post("/api/auth/me/email/request-otp");
-    return response.data;
-  },
-
-  /** Verify the current user's email with the OTP code. */
-  verifyEmailOtp: async (code) => {
-    const response = await api.post("/api/auth/me/email/verify-otp", { code });
-    return response.data;
-  },
 };
 
 // ============================================================
@@ -417,6 +404,12 @@ export const enquiriesAPI = {
   /** List enquiries received on the current seller's properties. */
   received: async () => {
     const response = await api.get("/api/enquiries/received");
+    return response.data;
+  },
+
+  /** Add a timestamped broker note to an enquiry (admin only). */
+  addNote: async (id, text) => {
+    const response = await api.post(`/api/enquiries/${id}/notes`, { text });
     return response.data;
   },
 };

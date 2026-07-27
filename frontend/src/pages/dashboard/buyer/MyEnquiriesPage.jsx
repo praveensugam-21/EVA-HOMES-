@@ -54,6 +54,18 @@ export default function MyEnquiriesPage() {
                 </div>
                 <StatusBadge status={item.status} />
               </div>
+
+              {item.notes && item.notes.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-zinc-100 space-y-2">
+                  <p className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">Replies from the broker desk</p>
+                  {item.notes.map((note) => (
+                    <div key={note.id} className="rounded-lg bg-zinc-50 border border-zinc-100 px-3 py-2">
+                      <p className="text-sm text-zinc-800 whitespace-pre-line">{note.text}</p>
+                      <p className="text-[11px] text-zinc-400 mt-1">{new Date(note.created_at).toLocaleString()}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </article>
           ))}
         </div>

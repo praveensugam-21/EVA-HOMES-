@@ -33,6 +33,12 @@ class Enquiry(Base):
 
     property = relationship("Property")
     user = relationship("User")
+    notes = relationship(
+        "EnquiryNote",
+        back_populates="enquiry",
+        order_by="EnquiryNote.created_at",
+        cascade="all, delete-orphan",
+    )
 
     def __repr__(self):
         return f"<Enquiry id={self.id} from={self.email}>"

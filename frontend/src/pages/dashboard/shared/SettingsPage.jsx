@@ -2,10 +2,8 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   FaCheckCircle,
-  FaEnvelope,
   FaFileAlt,
   FaLock,
-  FaPhone,
   FaQuestionCircle,
   FaSignOutAlt,
   FaSpinner,
@@ -16,8 +14,6 @@ import { useAuth } from "../../../context/AuthContext";
 
 const TABS = [
   { key: "security", label: "Security", icon: FaLock },
-  { key: "phone", label: "Phone Verification", icon: FaPhone },
-  { key: "email", label: "Email Verification", icon: FaEnvelope },
   { key: "notifications", label: "Notification Settings", icon: FaCheckCircle },
   { key: "help", label: "Help & Support", icon: FaQuestionCircle },
   { key: "terms", label: "Terms & Privacy", icon: FaFileAlt },
@@ -80,102 +76,6 @@ function SecuritySection() {
           Update Password
         </button>
       </form>
-    </div>
-  );
-}
-
-function OtpSection({ channel, isVerified, requestFn, verifyFn, onVerified }) {
-  const [devCode, setDevCode] = useState(null);
-  const [code, setCode] = useState("");
-  const [isRequesting, setIsRequesting] = useState(false);
-  const [isVerifying, setIsVerifying] = useState(false);
-  const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-
-  const handleRequest = async () => {
-    setIsRequesting(true);
-    setError("");
-    setMessage("");
-    try {
-      const resp = await requestFn();
-      setDevCode(resp.dev_code);
-      setMessage("A verification code was generated.");
-    } catch (err) {
-      setError(getErrorMessage(err, "Failed to request a code."));
-    } finally {
-      setIsRequesting(false);
-    }
-  };
-
-  const handleVerify = async (e) => {
-    e.preventDefault();
-    setIsVerifying(true);
-    setError("");
-    try {
-      await verifyFn(code);
-      setMessage(`${channel} verified.`);
-      setDevCode(null);
-      setCode("");
-      onVerified();
-    } catch (err) {
-      setError(getErrorMessage(err, "Verification failed."));
-    } finally {
-      setIsVerifying(false);
-    }
-  };
-
-  if (isVerified) {
-    return (
-      <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6 flex items-center gap-3">
-        <FaCheckCircle className="text-emerald-600 text-xl" />
-        <p className="text-sm text-zinc-700">Your {channel} is verified.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6 max-w-md">
-      <h2 className="text-lg font-bold text-zinc-950 mb-1 capitalize">{channel} Verification</h2>
-      <p className="text-sm text-zinc-500 mb-4">
-        No SMS/email provider is connected yet, so the code is shown here directly instead of being sent.
-      </p>
-
-      {error && <div className="bg-red-50 border border-red-100 text-red-700 rounded-lg p-3 mb-4 text-xs font-medium">{error}</div>}
-      {message && <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-lg p-3 mb-4 text-xs font-medium">{message}</div>}
-
-      {!devCode ? (
-        <button
-          type="button"
-          disabled={isRequesting}
-          onClick={handleRequest}
-          className="inline-flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 disabled:bg-zinc-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition"
-        >
-          {isRequesting && <FaSpinner className="animate-spin text-xs" />}
-          Send Verification Code
-        </button>
-      ) : (
-        <form onSubmit={handleVerify} className="space-y-3">
-          <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-600">
-            Dev code: <span className="font-mono font-semibold text-zinc-900">{devCode}</span>
-          </div>
-          <input
-            type="text"
-            required
-            placeholder="Enter code"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            className="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400 bg-white"
-          />
-          <button
-            type="submit"
-            disabled={isVerifying}
-            className="inline-flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 disabled:bg-zinc-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition"
-          >
-            {isVerifying && <FaSpinner className="animate-spin text-xs" />}
-            Verify
-          </button>
-        </form>
-      )}
     </div>
   );
 }
@@ -265,7 +165,7 @@ function TermsSection() {
 
 export default function SettingsPage() {
   const [activeTab, setActiveTab] = useState("security");
-  const { user, refreshUser, logout } = useAuth();
+  const { logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
@@ -302,24 +202,6 @@ export default function SettingsPage() {
 
         <div className="flex-1 min-w-0">
           {activeTab === "security" && <SecuritySection />}
-          {activeTab === "phone" && (
-            <OtpSection
-              channel="phone"
-              isVerified={!!user?.phone_verified}
-              requestFn={authAPI.requestPhoneOtp}
-              verifyFn={authAPI.verifyPhoneOtp}
-              onVerified={refreshUser}
-            />
-          )}
-          {activeTab === "email" && (
-            <OtpSection
-              channel="email"
-              isVerified={!!user?.email_verified}
-              requestFn={authAPI.requestEmailOtp}
-              verifyFn={authAPI.verifyEmailOtp}
-              onVerified={refreshUser}
-            />
-          )}
           {activeTab === "notifications" && <NotificationSettingsSection />}
           {activeTab === "help" && <HelpSection />}
           {activeTab === "terms" && <TermsSection />}

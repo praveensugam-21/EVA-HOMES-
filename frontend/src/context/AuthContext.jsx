@@ -99,6 +99,16 @@ export function AuthProvider({ children }) {
     return newUser;
   }, []);
 
+  // ---- REFRESH USER FUNCTION ----
+  // Re-fetches the profile from the backend and updates context + localStorage.
+  // Called after profile edits or seller document uploads change server state.
+  const refreshUser = useCallback(async () => {
+    const userProfile = await authAPI.getMyProfile();
+    localStorage.setItem("eva_user", JSON.stringify(userProfile));
+    setUser(userProfile);
+    return userProfile;
+  }, []);
+
   // ---- CONTEXT VALUE ----
   // This object is what components get when they call useAuth()
   const value = {
@@ -109,6 +119,7 @@ export function AuthProvider({ children }) {
     login,          // function(email, password)
     logout,         // function()
     register,       // function(userData)
+    refreshUser,    // function() — re-syncs user profile from server
   };
 
   return (

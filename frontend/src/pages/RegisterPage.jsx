@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FaHome, FaUser, FaEnvelope, FaLock, FaPhone, FaSpinner } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { getErrorMessage } from "../api/api";
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -33,7 +34,7 @@ export default function RegisterPage() {
         state: { message: "Account created! Please sign in." },
       });
     } catch (err) {
-      const message = err.response?.data?.detail || "Registration failed. Please try again.";
+      const message = getErrorMessage(err, "Registration failed. Please try again.");
       setError(message);
     } finally {
       setIsSubmitting(false);
@@ -110,6 +111,9 @@ export default function RegisterPage() {
             <Link to="/login" className="text-zinc-900 hover:underline">
               Sign In
             </Link>
+          </p>
+          <p className="text-center text-zinc-400 mt-3 text-[11px]">
+            Want to list properties too? You can activate a seller profile on this same account anytime from your profile page.
           </p>
         </div>
       </div>

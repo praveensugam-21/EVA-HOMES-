@@ -62,6 +62,7 @@ class Property(Base):
 
     is_featured = Column(Boolean, default=False)
     is_verified = Column(Boolean, default=False)
+    view_count = Column(Integer, default=0, nullable=False)
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(

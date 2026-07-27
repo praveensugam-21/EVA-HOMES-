@@ -104,6 +104,7 @@ class PropertyResponse(PropertyBase):
     status: PropertyStatus
     is_featured: bool
     is_verified: bool
+    view_count: int = 0
     owner_id: int
     created_at: datetime
     images: List[PropertyImageResponse] = []
@@ -171,6 +172,7 @@ class PropertyAdminItem(BaseModel):
     thumbnail_url: Optional[str] = None
     is_featured: bool
     is_verified: bool
+    view_count: int = 0
     owner_id: int
     owner_name: Optional[str] = None
     created_at: datetime
@@ -181,3 +183,25 @@ class PropertyAdminItem(BaseModel):
 class PropertyAdminListResponse(BaseModel):
     items: List[PropertyAdminItem]
     total: int
+
+
+# ---- Seller listing analytics (GET /api/properties/mine/analytics) ----
+class PropertyAnalyticsItem(BaseModel):
+    id: int
+    title: str
+    status: PropertyStatus
+    view_count: int
+    enquiry_count: int
+    visit_count: int
+    offer_count: int
+
+
+class PropertyAnalyticsSummary(BaseModel):
+    total_listings: int
+    active_listings: int
+    pending_listings: int
+    total_views: int
+    total_enquiries: int
+    total_visits: int
+    total_offers: int
+    items: List[PropertyAnalyticsItem]

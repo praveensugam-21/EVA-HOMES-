@@ -18,6 +18,26 @@
 
 import axios from "axios";
 
+// ============================================================
+// ERROR MESSAGE HELPER
+// ============================================================
+// FastAPI error responses aren't always a plain string in `detail`:
+// - App-raised HTTPExceptions → detail is a string.
+// - Pydantic validation errors (422) → detail is an ARRAY of
+//   { msg, loc, ... } objects. Rendering that array directly as a
+//   React child crashes the component (blank page), so every catch
+//   block should go through this helper instead of reading
+//   `err.response?.data?.detail` directly.
+export function getErrorMessage(err, fallback) {
+  const detail = err?.response?.data?.detail;
+  if (!detail) return fallback;
+  if (typeof detail === "string") return detail;
+  if (Array.isArray(detail)) {
+    return detail.map((item) => item?.msg || JSON.stringify(item)).join(" ");
+  }
+  return fallback;
+}
+
 // The base URL of our FastAPI backend
 // In development: http://localhost:8000
 // In production: set VITE_API_BASE_URL env variable (e.g. https://your-backend.onrender.com)
@@ -123,6 +143,122 @@ export const authAPI = {
     const response = await api.put(`/api/auth/users/${id}`, data);
     return response.data;
   },
+
+  /**
+   * Update the logged-in user's own profile.
+   * @param {Object} data - { full_name, phone, address, city, bio, avatar_url }
+   */
+  updateMyProfile: async (data) => {
+    const response = await api.put("/api/auth/me", data);
+    return response.data;
+  },
+
+  /**
+   * Activate a seller profile on the current account (no separate account needed).
+   * @param {Object} data - { business_name }
+   */
+  createMySellerProfile: async (data = {}) => {
+    const response = await api.post("/api/auth/me/seller-profile", data);
+    return response.data;
+  },
+
+  /**
+   * Update the current account's seller profile (e.g. business name).
+   */
+  updateMySellerProfile: async (data) => {
+    const response = await api.put("/api/auth/me/seller-profile", data);
+    return response.data;
+  },
+
+  /**
+   * List the logged-in seller's uploaded verification documents.
+   */
+  getMySellerDocuments: async () => {
+    const response = await api.get("/api/auth/me/seller-documents");
+    return response.data;
+  },
+
+  /**
+   * Upload a seller verification document (seller accounts only).
+   * @param {string} docType - e.g. "id_proof", "address_proof", "business_license"
+   * @param {File} file
+   */
+  uploadSellerDocument: async (docType, file) => {
+    const formData = new FormData();
+    formData.append("file", file);
+    const response = await api.post("/api/auth/me/seller-documents", formData, {
+      params: { doc_type: docType },
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+    return response.data;
+  },
+
+  /**
+   * View a seller's uploaded verification documents (admin only).
+   */
+  getSellerDocuments: async (userId) => {
+    const response = await api.get(`/api/auth/users/${userId}/seller-documents`);
+    return response.data;
+  },
+
+  /**
+   * Approve or reject a seller's verification (admin only).
+   * @param {number} userId
+   * @param {string} sellerStatus - "unverified" | "pending" | "verified" | "rejected"
+   */
+  updateSellerVerification: async (userId, sellerStatus) => {
+    const response = await api.put(`/api/auth/users/${userId}/seller-verification`, {
+      seller_status: sellerStatus,
+    });
+    return response.data;
+  },
+
+  /**
+   * Change the current user's password.
+   */
+  changePassword: async (currentPassword, newPassword) => {
+    const response = await api.put("/api/auth/me/password", {
+      current_password: currentPassword,
+      new_password: newPassword,
+    });
+    return response.data;
+  },
+
+  /** Get the current user's notification preferences. */
+  getNotificationPreferences: async () => {
+    const response = await api.get("/api/auth/me/notification-preferences");
+    return response.data;
+  },
+
+  /** Update the current user's notification preferences. */
+  updateNotificationPreferences: async (data) => {
+    const response = await api.put("/api/auth/me/notification-preferences", data);
+    return response.data;
+  },
+
+  /** Request an OTP to verify the current user's phone. Dev-mode returns dev_code directly. */
+  requestPhoneOtp: async () => {
+    const response = await api.post("/api/auth/me/phone/request-otp");
+    return response.data;
+  },
+
+  /** Verify the current user's phone with the OTP code. */
+  verifyPhoneOtp: async (code) => {
+    const response = await api.post("/api/auth/me/phone/verify-otp", { code });
+    return response.data;
+  },
+
+  /** Request an OTP to verify the current user's email. Dev-mode returns dev_code directly. */
+  requestEmailOtp: async () => {
+    const response = await api.post("/api/auth/me/email/request-otp");
+    return response.data;
+  },
+
+  /** Verify the current user's email with the OTP code. */
+  verifyEmailOtp: async (code) => {
+    const response = await api.post("/api/auth/me/email/verify-otp", { code });
+    return response.data;
+  },
 };
 
 // ============================================================
@@ -196,6 +332,22 @@ export const propertiesAPI = {
   },
 
   /**
+   * Get the current user's own property listings, any status (seller "My Listings").
+   */
+  mine: async (params = {}) => {
+    const response = await api.get("/api/properties/mine", { params });
+    return response.data;
+  },
+
+  /**
+   * Get listing analytics (views/enquiries/visits/offers) for the current seller.
+   */
+  getMyAnalytics: async () => {
+    const response = await api.get("/api/properties/mine/analytics");
+    return response.data;
+  },
+
+  /**
    * Delete a property (owner only)
    * @param {number} id - Property ID
    */
@@ -253,6 +405,103 @@ export const enquiriesAPI = {
   },
   update: async (id, data) => {
     const response = await api.put(`/api/enquiries/${id}`, data);
+    return response.data;
+  },
+
+  /** List the current user's own submitted enquiries (buyer dashboard). */
+  mine: async () => {
+    const response = await api.get("/api/enquiries/mine");
+    return response.data;
+  },
+
+  /** List enquiries received on the current seller's properties. */
+  received: async () => {
+    const response = await api.get("/api/enquiries/received");
+    return response.data;
+  },
+};
+
+// ============================================================
+// SAVED PROPERTIES (WISHLIST) API FUNCTIONS
+// ============================================================
+
+export const savedPropertiesAPI = {
+  list: async () => {
+    const response = await api.get("/api/saved-properties");
+    return response.data;
+  },
+  save: async (propertyId) => {
+    const response = await api.post(`/api/saved-properties/${propertyId}`);
+    return response.data;
+  },
+  unsave: async (propertyId) => {
+    await api.delete(`/api/saved-properties/${propertyId}`);
+  },
+};
+
+// ============================================================
+// VISITS API FUNCTIONS
+// ============================================================
+
+export const visitsAPI = {
+  /** Request a visit as a buyer. @param {Object} data - { property_id, requested_date, message } */
+  create: async (data) => {
+    const response = await api.post("/api/visits", data);
+    return response.data;
+  },
+  mine: async () => {
+    const response = await api.get("/api/visits/mine");
+    return response.data;
+  },
+  received: async () => {
+    const response = await api.get("/api/visits/received");
+    return response.data;
+  },
+  updateStatus: async (id, status) => {
+    const response = await api.put(`/api/visits/${id}`, { status });
+    return response.data;
+  },
+};
+
+// ============================================================
+// OFFERS API FUNCTIONS
+// ============================================================
+
+export const offersAPI = {
+  /** Make a price offer as a buyer. @param {Object} data - { property_id, amount, message } */
+  create: async (data) => {
+    const response = await api.post("/api/offers", data);
+    return response.data;
+  },
+  mine: async () => {
+    const response = await api.get("/api/offers/mine");
+    return response.data;
+  },
+  received: async () => {
+    const response = await api.get("/api/offers/received");
+    return response.data;
+  },
+  updateStatus: async (id, status) => {
+    const response = await api.put(`/api/offers/${id}`, { status });
+    return response.data;
+  },
+};
+
+// ============================================================
+// NOTIFICATIONS API FUNCTIONS
+// ============================================================
+
+export const notificationsAPI = {
+  list: async () => {
+    const response = await api.get("/api/notifications");
+    return response.data;
+  },
+  markRead: async (id) => {
+    const response = await api.put(`/api/notifications/${id}/read`);
+    return response.data;
+  },
+  markAllRead: async () => {
+    const response = await api.put("/api/notifications/read-all");
     return response.data;
   },
 };

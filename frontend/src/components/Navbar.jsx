@@ -61,15 +61,20 @@ export default function Navbar() {
                   </Link>
                 </>
               )}
-              <Link to="/listings/create" className="text-xs font-semibold text-zinc-900 border border-zinc-900 px-3.5 py-1.5 rounded-lg hover:bg-zinc-900 hover:text-white transition">
-                + List Property
+              {(user?.has_seller_profile || user?.is_admin) && (
+                <Link to="/listings/create" className="text-xs font-semibold text-zinc-900 border border-zinc-900 px-3.5 py-1.5 rounded-lg hover:bg-zinc-900 hover:text-white transition">
+                  + List Property
+                </Link>
+              )}
+              <Link to="/dashboard/buyer" className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 transition">
+                Dashboard
               </Link>
-              <div className="flex items-center gap-2 text-zinc-700 text-sm">
+              <Link to="/dashboard/profile" className="flex items-center gap-2 text-zinc-700 text-sm hover:text-zinc-900 transition">
                 <div className="w-8 h-8 bg-zinc-100 rounded-full flex items-center justify-center border border-zinc-200">
                   <FaUser className="text-zinc-600 text-xs" />
                 </div>
                 <span className="font-medium">{user?.full_name?.split(" ")[0]}</span>
-              </div>
+              </Link>
               <button
                 id="logout-btn"
                 onClick={handleLogout}
@@ -148,12 +153,28 @@ export default function Navbar() {
                     </Link>
                   </>
                 )}
+                {(user?.has_seller_profile || user?.is_admin) && (
+                  <Link
+                    to="/listings/create"
+                    className="block text-center border border-zinc-900 text-zinc-900 py-2.5 rounded-lg text-sm font-medium"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    + List Property
+                  </Link>
+                )}
                 <Link
-                  to="/listings/create"
-                  className="block text-center border border-zinc-900 text-zinc-900 py-2.5 rounded-lg text-sm font-medium"
+                  to="/dashboard/buyer"
+                  className="block text-center border border-zinc-200 text-zinc-700 py-2.5 rounded-lg text-sm font-medium"
                   onClick={() => setMenuOpen(false)}
                 >
-                  + List Property
+                  Dashboard
+                </Link>
+                <Link
+                  to="/dashboard/profile"
+                  className="block text-center border border-zinc-200 text-zinc-700 py-2.5 rounded-lg text-sm font-medium"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  My Profile
                 </Link>
                 <button
                   onClick={handleLogout}

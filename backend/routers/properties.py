@@ -18,14 +18,21 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
+from sqlalchemy import func
+
 from database import get_db
+from models.enquiry import Enquiry
+from models.offer import Offer
 from models.property import ListingType, Property, PropertyImage, PropertyStatus, PropertyType
 from models.user import User
-from routers.auth import get_admin_user, get_current_user
+from models.visit import Visit
+from routers.auth import get_admin_user, get_current_user, get_seller_user
 from routers.settings import get_or_create_broker_settings
 from schemas.property import (
     PropertyAdminItem,
     PropertyAdminListResponse,
+    PropertyAnalyticsItem,
+    PropertyAnalyticsSummary,
     PropertyCreate,
     PropertyContactResponse,
     PropertyListItem,
@@ -216,12 +223,111 @@ def admin_list_properties(
     properties = query.order_by(Property.created_at.desc()).all()
     items = [
         PropertyAdminItem(
-            **PropertyAdminItem.model_validate(prop).model_dump(),
+            **PropertyAdminItem.model_validate(prop).model_dump(exclude={"owner_name"}),
             owner_name=prop.owner.full_name if prop.owner else None,
         )
         for prop in properties
     ]
     return PropertyAdminListResponse(items=items, total=len(items))
+
+
+# ============================================================
+# ENDPOINT 3b: My Listings — the logged-in user's own properties,
+# regardless of status, so they can see pending/rejected/etc.
+# GET /api/properties/mine
+# ============================================================
+@router.get(
+    "/mine",
+    response_model=PropertyAdminListResponse,
+    summary="Get the current user's own property listings (any status)"
+)
+def list_my_properties(
+    status_filter: Optional[PropertyStatus] = Query(None, alias="status"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    query = db.query(Property).filter(Property.owner_id == current_user.id)
+
+    if status_filter:
+        query = query.filter(Property.status == status_filter)
+
+    properties = query.order_by(Property.created_at.desc()).all()
+    items = [
+        PropertyAdminItem(
+            **PropertyAdminItem.model_validate(prop).model_dump(exclude={"owner_name"}),
+            owner_name=current_user.full_name,
+        )
+        for prop in properties
+    ]
+    return PropertyAdminListResponse(items=items, total=len(items))
+
+
+# ============================================================
+# ENDPOINT 3c: Listing Analytics — per-listing views/enquiries/
+# visits/offers for the current seller, plus a summary.
+# GET /api/properties/mine/analytics
+# ============================================================
+@router.get(
+    "/mine/analytics",
+    response_model=PropertyAnalyticsSummary,
+    summary="Get listing analytics for the current seller's properties"
+)
+def get_my_listing_analytics(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_seller_user),
+):
+    properties = (
+        db.query(Property)
+        .filter(Property.owner_id == current_user.id)
+        .order_by(Property.created_at.desc())
+        .all()
+    )
+    property_ids = [p.id for p in properties]
+
+    enquiry_counts = dict(
+        db.query(Enquiry.property_id, func.count(Enquiry.id))
+        .filter(Enquiry.property_id.in_(property_ids))
+        .group_by(Enquiry.property_id)
+        .all()
+    ) if property_ids else {}
+
+    visit_counts = dict(
+        db.query(Visit.property_id, func.count(Visit.id))
+        .filter(Visit.property_id.in_(property_ids))
+        .group_by(Visit.property_id)
+        .all()
+    ) if property_ids else {}
+
+    offer_counts = dict(
+        db.query(Offer.property_id, func.count(Offer.id))
+        .filter(Offer.property_id.in_(property_ids))
+        .group_by(Offer.property_id)
+        .all()
+    ) if property_ids else {}
+
+    items = [
+        PropertyAnalyticsItem(
+            id=p.id,
+            title=p.title,
+            status=p.status,
+            view_count=p.view_count or 0,
+            enquiry_count=enquiry_counts.get(p.id, 0),
+            visit_count=visit_counts.get(p.id, 0),
+            offer_count=offer_counts.get(p.id, 0),
+        )
+        for p in properties
+    ]
+
+    return PropertyAnalyticsSummary(
+        total_listings=len(properties),
+        active_listings=sum(1 for p in properties if p.status == PropertyStatus.ACTIVE),
+        pending_listings=sum(1 for p in properties if p.status == PropertyStatus.PENDING),
+        total_views=sum(item.view_count for item in items),
+        total_enquiries=sum(item.enquiry_count for item in items),
+        total_visits=sum(item.visit_count for item in items),
+        total_offers=sum(item.offer_count for item in items),
+        items=items,
+    )
 
 
 # ============================================================
@@ -287,6 +393,10 @@ def get_property(property_id: int, db: Session = Depends(get_db)):
             detail=f"Property with ID {property_id} not found."
         )
 
+    prop.view_count = (prop.view_count or 0) + 1
+    db.commit()
+    db.refresh(prop)
+
     # Manually add owner_name since it's not a DB column
     # (it comes from the related User object)
     response = PropertyResponse.model_validate(prop)
@@ -308,13 +418,14 @@ def get_property(property_id: int, db: Session = Depends(get_db)):
 def create_property(
     property_data: PropertyCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),  # ← requires login!
+    current_user: User = Depends(get_seller_user),  # ← requires login + seller role!
 ):
     """
     Creates a new property listing.
-    
-    PROTECTED: You must be logged in (send Bearer token).
-    The property is automatically linked to the logged-in user.
+
+    PROTECTED: You must be logged in as a seller (or admin) account.
+    Buyer accounts cannot list properties. The property is automatically
+    linked to the logged-in user.
     
     Request body example:
     {
@@ -488,7 +599,7 @@ from fastapi import File, UploadFile
 )
 async def upload_image(
     file: UploadFile = File(...),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_seller_user)
 ):
     """
     Uploads an image file to the server and returns its static URL.

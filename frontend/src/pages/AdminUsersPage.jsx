@@ -1,15 +1,31 @@
 import { useEffect, useState } from "react";
-import { FaSearch, FaShieldAlt, FaSpinner, FaUserCheck, FaUserSlash } from "react-icons/fa";
+import {
+  FaCheckCircle,
+  FaFileAlt,
+  FaSearch,
+  FaShieldAlt,
+  FaSpinner,
+  FaTimesCircle,
+  FaUserCheck,
+  FaUserSlash,
+} from "react-icons/fa";
 import { Navigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { authAPI } from "../api/api";
+import { authAPI, getErrorMessage } from "../api/api";
 import { useAuth } from "../context/AuthContext";
 
 const initialFilters = {
   search: "",
   active: "",
   is_admin: "",
+};
+
+const SELLER_STATUS_STYLES = {
+  unverified: "bg-zinc-200 text-zinc-700",
+  pending: "bg-amber-100 text-amber-700",
+  verified: "bg-emerald-100 text-emerald-700",
+  rejected: "bg-red-100 text-red-700",
 };
 
 export default function AdminUsersPage() {
@@ -19,6 +35,9 @@ export default function AdminUsersPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeId, setActiveId] = useState(null);
   const [error, setError] = useState("");
+  const [expandedUserId, setExpandedUserId] = useState(null);
+  const [docsByUser, setDocsByUser] = useState({});
+  const [docsLoading, setDocsLoading] = useState(false);
 
   useEffect(() => {
     if (!isLoggedIn || !user?.is_admin) {
@@ -36,7 +55,7 @@ export default function AdminUsersPage() {
         });
         setData(response);
       } catch (err) {
-        setError(err.response?.data?.detail || "Failed to load users.");
+        setError(getErrorMessage(err, "Failed to load users."));
       } finally {
         setIsLoading(false);
       }
@@ -68,7 +87,42 @@ export default function AdminUsersPage() {
         items: prev.items.map((item) => (item.id === userId ? updated : item)),
       }));
     } catch (err) {
-      setError(err.response?.data?.detail || "Failed to update user.");
+      setError(getErrorMessage(err, "Failed to update user."));
+    } finally {
+      setActiveId(null);
+    }
+  };
+
+  const handleToggleDocuments = async (userId) => {
+    if (expandedUserId === userId) {
+      setExpandedUserId(null);
+      return;
+    }
+    setExpandedUserId(userId);
+    if (!docsByUser[userId]) {
+      setDocsLoading(true);
+      try {
+        const docs = await authAPI.getSellerDocuments(userId);
+        setDocsByUser((prev) => ({ ...prev, [userId]: docs }));
+      } catch (err) {
+        setError(getErrorMessage(err, "Failed to load documents."));
+      } finally {
+        setDocsLoading(false);
+      }
+    }
+  };
+
+  const handleSellerVerification = async (userId, sellerStatus) => {
+    setActiveId(userId);
+    setError("");
+    try {
+      const updated = await authAPI.updateSellerVerification(userId, sellerStatus);
+      setData((prev) => ({
+        ...prev,
+        items: prev.items.map((item) => (item.id === userId ? updated : item)),
+      }));
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to update verification status."));
     } finally {
       setActiveId(null);
     }
@@ -167,6 +221,14 @@ export default function AdminUsersPage() {
                             Admin
                           </span>
                         )}
+                        <span className="px-2.5 py-1 rounded-full bg-zinc-100 text-zinc-700 text-[11px] font-semibold uppercase tracking-wider">
+                          Buyer
+                        </span>
+                        {item.has_seller_profile && (
+                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider ${SELLER_STATUS_STYLES[item.seller_profile?.seller_status] || SELLER_STATUS_STYLES.unverified}`}>
+                            Seller: {item.seller_profile?.seller_status}
+                          </span>
+                        )}
                       </div>
 
                       <div>
@@ -178,6 +240,57 @@ export default function AdminUsersPage() {
                         <p>Phone: <span className="font-medium">{item.phone || "Not shared"}</span></p>
                         <p>Created: <span className="font-medium">{new Date(item.created_at).toLocaleString()}</span></p>
                       </div>
+
+                      {item.has_seller_profile && (
+                        <div className="pt-1">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleDocuments(item.id)}
+                            className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-600 hover:text-zinc-900 underline"
+                          >
+                            <FaFileAlt className="text-[10px]" />
+                            {expandedUserId === item.id ? "Hide Documents" : "View Documents"}
+                          </button>
+
+                          {expandedUserId === item.id && (
+                            <div className="mt-3 border border-zinc-100 rounded-lg p-3 space-y-2">
+                              {docsLoading && !docsByUser[item.id] ? (
+                                <FaSpinner className="animate-spin text-zinc-400" />
+                              ) : (docsByUser[item.id] || []).length === 0 ? (
+                                <p className="text-xs text-zinc-400">No documents uploaded yet.</p>
+                              ) : (
+                                (docsByUser[item.id] || []).map((doc) => (
+                                  <div key={doc.id} className="flex items-center justify-between text-xs">
+                                    <span className="text-zinc-700 font-medium">{doc.doc_type}</span>
+                                    <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-zinc-500 hover:text-zinc-900 underline">
+                                      View file
+                                    </a>
+                                  </div>
+                                ))
+                              )}
+
+                              <div className="flex gap-2 pt-2 border-t border-zinc-100">
+                                <button
+                                  type="button"
+                                  disabled={activeId === item.id}
+                                  onClick={() => handleSellerVerification(item.id, "verified")}
+                                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2 transition disabled:opacity-60"
+                                >
+                                  <FaCheckCircle className="text-[10px]" /> Verify Seller
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={activeId === item.id}
+                                  onClick={() => handleSellerVerification(item.id, "rejected")}
+                                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 text-xs font-semibold py-2 transition disabled:opacity-60"
+                                >
+                                  <FaTimesCircle className="text-[10px]" /> Reject
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="xl:w-72 space-y-3">

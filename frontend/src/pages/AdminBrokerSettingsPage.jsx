@@ -3,7 +3,7 @@ import { FaArrowLeft, FaPhoneAlt, FaSave, FaSpinner, FaUserShield, FaWhatsapp } 
 import { Link, Navigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { settingsAPI } from "../api/api";
+import { settingsAPI, getErrorMessage } from "../api/api";
 import { useAuth } from "../context/AuthContext";
 
 const initialForm = {
@@ -36,7 +36,7 @@ export default function AdminBrokerSettingsPage() {
           broker_whatsapp: data.broker_whatsapp,
         });
       } catch (err) {
-        setError(err.response?.data?.detail || "Failed to load broker settings.");
+        setError(getErrorMessage(err, "Failed to load broker settings."));
       } finally {
         setIsLoading(false);
       }
@@ -75,7 +75,7 @@ export default function AdminBrokerSettingsPage() {
       });
       setSuccess("Broker contact details updated successfully.");
     } catch (err) {
-      setError(err.response?.data?.detail || "Failed to update broker contact details.");
+      setError(getErrorMessage(err, "Failed to update broker contact details."));
     } finally {
       setIsSaving(false);
     }

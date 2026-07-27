@@ -3,7 +3,7 @@ import { FaCheckCircle, FaEnvelopeOpenText, FaFilter, FaPhoneAlt, FaSearch, FaSp
 import { Link, Navigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { enquiriesAPI } from "../api/api";
+import { enquiriesAPI, getErrorMessage } from "../api/api";
 import { useAuth } from "../context/AuthContext";
 
 const initialFilters = {
@@ -36,7 +36,7 @@ export default function AdminEnquiriesPage() {
         });
         setDashboard(data);
       } catch (err) {
-        setError(err.response?.data?.detail || "Failed to load enquiries.");
+        setError(getErrorMessage(err, "Failed to load enquiries."));
       } finally {
         setIsLoading(false);
       }
@@ -77,7 +77,7 @@ export default function AdminEnquiriesPage() {
       await enquiriesAPI.update(enquiryId, data);
       await refreshEnquiries();
     } catch (err) {
-      setError(err.response?.data?.detail || "Failed to update enquiry.");
+      setError(getErrorMessage(err, "Failed to update enquiry."));
     } finally {
       setActiveId(null);
     }

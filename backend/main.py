@@ -19,12 +19,23 @@ from sqlalchemy import inspect, text
 from core.config import settings
 from database import Base, engine
 import models
-from routers import auth, cities, enquiries, properties, settings as settings_router
+from routers import (
+    auth,
+    cities,
+    enquiries,
+    notifications,
+    offers,
+    properties,
+    saved_properties,
+    settings as settings_router,
+    visits,
+)
 
 
 # Ensure static/uploads folder exists at startup before mounting
 try:
     os.makedirs(os.path.join("static", "uploads"), exist_ok=True)
+    os.makedirs(os.path.join("static", "seller_docs"), exist_ok=True)
 except OSError:
     pass
 
@@ -49,17 +60,43 @@ def ensure_enquiry_columns():
                 connection.execute(text(statement))
 
 
-def ensure_property_status_values():
-    """
-    SQLite stores enum values as strings. Since we added 'pending' and 'rejected'
-    to PropertyStatus, existing rows are fine — SQLite won't reject them.
-    This migration ensures new rows default to 'pending' by running a
-    no-op check. (The actual default is set in the ORM model.)
-    """
+def ensure_user_columns():
+    """Add buyer-profile columns for existing SQLite databases."""
+    inspector = inspect(engine)
+    if "users" not in inspector.get_table_names():
+        return
+
+    existing_columns = {column["name"] for column in inspector.get_columns("users")}
+    columns_to_add = {
+        "address": "ALTER TABLE users ADD COLUMN address VARCHAR(255)",
+        "city": "ALTER TABLE users ADD COLUMN city VARCHAR(100)",
+        "bio": "ALTER TABLE users ADD COLUMN bio VARCHAR(500)",
+        "avatar_url": "ALTER TABLE users ADD COLUMN avatar_url VARCHAR(500)",
+        "phone_verified": "ALTER TABLE users ADD COLUMN phone_verified BOOLEAN NOT NULL DEFAULT FALSE",
+        "email_verified": "ALTER TABLE users ADD COLUMN email_verified BOOLEAN NOT NULL DEFAULT FALSE",
+    }
+
+    with engine.begin() as connection:
+        for column_name, statement in columns_to_add.items():
+            if column_name not in existing_columns:
+                connection.execute(text(statement))
+
+
+def ensure_property_columns():
+    """Add analytics columns for existing SQLite databases."""
     inspector = inspect(engine)
     if "properties" not in inspector.get_table_names():
         return
-    # Nothing to ALTER for SQLite enums — string values work transparently.
+
+    existing_columns = {column["name"] for column in inspector.get_columns("properties")}
+    columns_to_add = {
+        "view_count": "ALTER TABLE properties ADD COLUMN view_count INTEGER NOT NULL DEFAULT 0",
+    }
+
+    with engine.begin() as connection:
+        for column_name, statement in columns_to_add.items():
+            if column_name not in existing_columns:
+                connection.execute(text(statement))
 
 
 @asynccontextmanager
@@ -67,7 +104,8 @@ async def lifespan(app: FastAPI):
     try:
         Base.metadata.create_all(bind=engine)
         ensure_enquiry_columns()
-        ensure_property_status_values()
+        ensure_user_columns()
+        ensure_property_columns()
         try:
             from seed import seed
             seed()
@@ -127,6 +165,10 @@ app.include_router(properties.router)
 app.include_router(cities.router)
 app.include_router(enquiries.router)
 app.include_router(settings_router.router)
+app.include_router(saved_properties.router)
+app.include_router(visits.router)
+app.include_router(offers.router)
+app.include_router(notifications.router)
 
 @app.get("/", tags=["Health"])
 def root():

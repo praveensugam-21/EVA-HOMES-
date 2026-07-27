@@ -1,0 +1,330 @@
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  FaCheckCircle,
+  FaEnvelope,
+  FaFileAlt,
+  FaLock,
+  FaPhone,
+  FaQuestionCircle,
+  FaSignOutAlt,
+  FaSpinner,
+} from "react-icons/fa";
+import DashboardLayout from "../../../layouts/DashboardLayout";
+import { authAPI, getErrorMessage } from "../../../api/api";
+import { useAuth } from "../../../context/AuthContext";
+
+const TABS = [
+  { key: "security", label: "Security", icon: FaLock },
+  { key: "phone", label: "Phone Verification", icon: FaPhone },
+  { key: "email", label: "Email Verification", icon: FaEnvelope },
+  { key: "notifications", label: "Notification Settings", icon: FaCheckCircle },
+  { key: "help", label: "Help & Support", icon: FaQuestionCircle },
+  { key: "terms", label: "Terms & Privacy", icon: FaFileAlt },
+];
+
+function SecuritySection() {
+  const [form, setForm] = useState({ current_password: "", new_password: "" });
+  const [message, setMessage] = useState("");
+  const [error, setError] = useState("");
+  const [isSaving, setIsSaving] = useState(false);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSaving(true);
+    setError("");
+    setMessage("");
+    try {
+      await authAPI.changePassword(form.current_password, form.new_password);
+      setMessage("Password updated.");
+      setForm({ current_password: "", new_password: "" });
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to change password."));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  return (
+    <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6">
+      <h2 className="text-lg font-bold text-zinc-950 mb-4">Change Password</h2>
+      {error && <div className="bg-red-50 border border-red-100 text-red-700 rounded-lg p-3 mb-4 text-xs font-medium">{error}</div>}
+      {message && <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-lg p-3 mb-4 text-xs font-medium">{message}</div>}
+      <form onSubmit={handleSubmit} className="space-y-4 max-w-sm">
+        <div>
+          <label className="block text-zinc-600 text-xs font-semibold mb-1.5">Current Password</label>
+          <input
+            type="password"
+            required
+            value={form.current_password}
+            onChange={(e) => setForm((p) => ({ ...p, current_password: e.target.value }))}
+            className="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+          />
+        </div>
+        <div>
+          <label className="block text-zinc-600 text-xs font-semibold mb-1.5">New Password</label>
+          <input
+            type="password"
+            required
+            value={form.new_password}
+            onChange={(e) => setForm((p) => ({ ...p, new_password: e.target.value }))}
+            className="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+          />
+        </div>
+        <button
+          type="submit"
+          disabled={isSaving}
+          className="inline-flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 disabled:bg-zinc-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition"
+        >
+          {isSaving && <FaSpinner className="animate-spin text-xs" />}
+          Update Password
+        </button>
+      </form>
+    </div>
+  );
+}
+
+function OtpSection({ channel, isVerified, requestFn, verifyFn, onVerified }) {
+  const [devCode, setDevCode] = useState(null);
+  const [code, setCode] = useState("");
+  const [isRequesting, setIsRequesting] = useState(false);
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [error, setError] = useState("");
+  const [message, setMessage] = useState("");
+
+  const handleRequest = async () => {
+    setIsRequesting(true);
+    setError("");
+    setMessage("");
+    try {
+      const resp = await requestFn();
+      setDevCode(resp.dev_code);
+      setMessage("A verification code was generated.");
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to request a code."));
+    } finally {
+      setIsRequesting(false);
+    }
+  };
+
+  const handleVerify = async (e) => {
+    e.preventDefault();
+    setIsVerifying(true);
+    setError("");
+    try {
+      await verifyFn(code);
+      setMessage(`${channel} verified.`);
+      setDevCode(null);
+      setCode("");
+      onVerified();
+    } catch (err) {
+      setError(getErrorMessage(err, "Verification failed."));
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  if (isVerified) {
+    return (
+      <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6 flex items-center gap-3">
+        <FaCheckCircle className="text-emerald-600 text-xl" />
+        <p className="text-sm text-zinc-700">Your {channel} is verified.</p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6 max-w-md">
+      <h2 className="text-lg font-bold text-zinc-950 mb-1 capitalize">{channel} Verification</h2>
+      <p className="text-sm text-zinc-500 mb-4">
+        No SMS/email provider is connected yet, so the code is shown here directly instead of being sent.
+      </p>
+
+      {error && <div className="bg-red-50 border border-red-100 text-red-700 rounded-lg p-3 mb-4 text-xs font-medium">{error}</div>}
+      {message && <div className="bg-emerald-50 border border-emerald-100 text-emerald-700 rounded-lg p-3 mb-4 text-xs font-medium">{message}</div>}
+
+      {!devCode ? (
+        <button
+          type="button"
+          disabled={isRequesting}
+          onClick={handleRequest}
+          className="inline-flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 disabled:bg-zinc-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition"
+        >
+          {isRequesting && <FaSpinner className="animate-spin text-xs" />}
+          Send Verification Code
+        </button>
+      ) : (
+        <form onSubmit={handleVerify} className="space-y-3">
+          <div className="bg-zinc-50 border border-zinc-200 rounded-lg px-3 py-2 text-sm text-zinc-600">
+            Dev code: <span className="font-mono font-semibold text-zinc-900">{devCode}</span>
+          </div>
+          <input
+            type="text"
+            required
+            placeholder="Enter code"
+            value={code}
+            onChange={(e) => setCode(e.target.value)}
+            className="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+          />
+          <button
+            type="submit"
+            disabled={isVerifying}
+            className="inline-flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 disabled:bg-zinc-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition"
+          >
+            {isVerifying && <FaSpinner className="animate-spin text-xs" />}
+            Verify
+          </button>
+        </form>
+      )}
+    </div>
+  );
+}
+
+function NotificationSettingsSection() {
+  const [prefs, setPrefs] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const data = await authAPI.getNotificationPreferences();
+        setPrefs(data);
+      } catch (err) {
+        setError(getErrorMessage(err, "Failed to load notification settings."));
+      }
+    })();
+  }, []);
+
+  const toggle = async (field) => {
+    const updated = { ...prefs, [field]: !prefs[field] };
+    setPrefs(updated);
+    setIsSaving(true);
+    try {
+      await authAPI.updateNotificationPreferences({ [field]: updated[field] });
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to update preference."));
+      setPrefs(prefs);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  if (!prefs) {
+    return <div className="flex items-center justify-center py-10 text-zinc-400"><FaSpinner className="animate-spin text-2xl" /></div>;
+  }
+
+  const options = [
+    { key: "email_on_enquiry", label: "Email me about new enquiries" },
+    { key: "email_on_visit_offer_update", label: "Email me about visit/offer updates" },
+    { key: "email_on_verification_update", label: "Email me about verification decisions" },
+    { key: "sms_notifications", label: "SMS notifications" },
+  ];
+
+  return (
+    <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6 max-w-md">
+      <h2 className="text-lg font-bold text-zinc-950 mb-4">Notification Preferences</h2>
+      {error && <div className="bg-red-50 border border-red-100 text-red-700 rounded-lg p-3 mb-4 text-xs font-medium">{error}</div>}
+      <div className="space-y-3">
+        {options.map((opt) => (
+          <label key={opt.key} className="flex items-center justify-between gap-4 cursor-pointer">
+            <span className="text-sm text-zinc-700">{opt.label}</span>
+            <input
+              type="checkbox"
+              checked={!!prefs[opt.key]}
+              disabled={isSaving}
+              onChange={() => toggle(opt.key)}
+              className="w-4 h-4 accent-zinc-900"
+            />
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function HelpSection() {
+  return (
+    <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6 space-y-3 text-sm text-zinc-600">
+      <h2 className="text-lg font-bold text-zinc-950">Help &amp; Support</h2>
+      <p>Need help with your account or a listing? Reach out to the broker desk from any property page's contact panel.</p>
+      <p>For account-specific issues (login problems, incorrect verification status), contact an administrator.</p>
+    </div>
+  );
+}
+
+function TermsSection() {
+  return (
+    <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6 space-y-3 text-sm text-zinc-600">
+      <h2 className="text-lg font-bold text-zinc-950">Terms &amp; Privacy</h2>
+      <p>EVA Homes is a demonstration real estate platform. Listings are moderated by admins before going live.</p>
+      <p>Buyer and seller data is used only to operate the platform's core features (listings, enquiries, visits, offers, notifications).</p>
+    </div>
+  );
+}
+
+export default function SettingsPage() {
+  const [activeTab, setActiveTab] = useState("security");
+  const { user, refreshUser, logout } = useAuth();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/");
+  };
+
+  return (
+    <DashboardLayout title="Settings" subtitle="Account, security, and notification preferences">
+      <div className="flex flex-col lg:flex-row gap-6">
+        <nav className="lg:w-56 shrink-0 space-y-1">
+          {TABS.map((tab) => (
+            <button
+              key={tab.key}
+              type="button"
+              onClick={() => setActiveTab(tab.key)}
+              className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium text-left transition ${
+                activeTab === tab.key ? "bg-zinc-900 text-white" : "text-zinc-600 hover:bg-zinc-100"
+              }`}
+            >
+              <tab.icon className="text-xs shrink-0" />
+              {tab.label}
+            </button>
+          ))}
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium text-left text-red-600 hover:bg-red-50 transition"
+          >
+            <FaSignOutAlt className="text-xs shrink-0" />
+            Logout
+          </button>
+        </nav>
+
+        <div className="flex-1 min-w-0">
+          {activeTab === "security" && <SecuritySection />}
+          {activeTab === "phone" && (
+            <OtpSection
+              channel="phone"
+              isVerified={!!user?.phone_verified}
+              requestFn={authAPI.requestPhoneOtp}
+              verifyFn={authAPI.verifyPhoneOtp}
+              onVerified={refreshUser}
+            />
+          )}
+          {activeTab === "email" && (
+            <OtpSection
+              channel="email"
+              isVerified={!!user?.email_verified}
+              requestFn={authAPI.requestEmailOtp}
+              verifyFn={authAPI.verifyEmailOtp}
+              onVerified={refreshUser}
+            />
+          )}
+          {activeTab === "notifications" && <NotificationSettingsSection />}
+          {activeTab === "help" && <HelpSection />}
+          {activeTab === "terms" && <TermsSection />}
+        </div>
+      </div>
+    </DashboardLayout>
+  );
+}

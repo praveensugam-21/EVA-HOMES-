@@ -2,6 +2,7 @@ import { useState } from "react";
 import { FaHome, FaEnvelope, FaLock, FaSpinner } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { getErrorMessage } from "../api/api";
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({ email: "", password: "" });
@@ -26,7 +27,7 @@ export default function LoginPage() {
       await login(formData.email, formData.password);
       navigate("/");
     } catch (err) {
-      const message = err.response?.data?.detail || "Login failed. Please check your credentials.";
+      const message = getErrorMessage(err, "Login failed. Please check your credentials.");
       setError(message);
     } finally {
       setIsSubmitting(false);

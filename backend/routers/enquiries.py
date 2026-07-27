@@ -8,7 +8,7 @@ from database import get_db
 from models.enquiry import Enquiry
 from models.property import Property
 from models.user import User
-from routers.auth import get_admin_user
+from routers.auth import get_admin_user, get_current_user, get_current_user_optional
 from schemas.enquiry import (
     EnquiryAdminItem,
     EnquiryCreate,
@@ -30,9 +30,12 @@ def submit_enquiry(
     request: Request,
     enquiry_data: EnquiryCreate,
     db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional),
 ):
     """
-    Anyone can submit an enquiry.
+    Anyone can submit an enquiry — login is not required. If the visitor
+    happens to be logged in, the enquiry is attributed to their account
+    (Enquiry.user_id) so it shows up under their "My Enquiries" dashboard.
     A simple per-client rate limit reduces abuse on the public form.
     """
     rate_limiter.check(
@@ -59,11 +62,70 @@ def submit_enquiry(
         status="read" if enquiry_data.source == "whatsapp" else "new",
         property_id=enquiry_data.property_id,
         is_read=enquiry_data.source == "whatsapp",
+        user_id=current_user.id if current_user else None,
     )
     db.add(new_enquiry)
     db.commit()
     db.refresh(new_enquiry)
     return new_enquiry
+
+
+@router.get(
+    "/mine",
+    response_model=EnquiryListResponse,
+    summary="List the current user's own submitted enquiries"
+)
+def list_my_enquiries(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    enquiries = (
+        db.query(Enquiry)
+        .outerjoin(Property, Property.id == Enquiry.property_id)
+        .filter(Enquiry.user_id == current_user.id)
+        .order_by(Enquiry.created_at.desc())
+        .all()
+    )
+    items = [
+        EnquiryAdminItem(
+            **EnquiryResponse.model_validate(enquiry).model_dump(),
+            property_title=enquiry.property.title if enquiry.property else None,
+            property_city=enquiry.property.city if enquiry.property else None,
+            property_locality=enquiry.property.locality if enquiry.property else None,
+        )
+        for enquiry in enquiries
+    ]
+    return EnquiryListResponse(items=items, total=len(items), unread_count=0, new_count=0)
+
+
+@router.get(
+    "/received",
+    response_model=EnquiryListResponse,
+    summary="List enquiries received on the current seller's properties"
+)
+def list_received_enquiries(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    enquiries = (
+        db.query(Enquiry)
+        .join(Property, Property.id == Enquiry.property_id)
+        .filter(Property.owner_id == current_user.id)
+        .order_by(Enquiry.created_at.desc())
+        .all()
+    )
+    items = [
+        EnquiryAdminItem(
+            **EnquiryResponse.model_validate(enquiry).model_dump(),
+            property_title=enquiry.property.title if enquiry.property else None,
+            property_city=enquiry.property.city if enquiry.property else None,
+            property_locality=enquiry.property.locality if enquiry.property else None,
+        )
+        for enquiry in enquiries
+    ]
+    unread_count = sum(1 for e in enquiries if not e.is_read)
+    new_count = sum(1 for e in enquiries if e.status == "new")
+    return EnquiryListResponse(items=items, total=len(items), unread_count=unread_count, new_count=new_count)
 
 
 @router.get(

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { FaBed, FaBath, FaRulerCombined, FaMapMarkerAlt, FaCheckCircle, FaSpinner, FaCar, FaMap, FaPhoneAlt, FaWhatsapp, FaUserShield, FaTrash, FaExclamationTriangle, FaTimes, FaClock } from "react-icons/fa";
-import { propertiesAPI, enquiriesAPI } from "../api/api";
+import { FaBed, FaBath, FaRulerCombined, FaMapMarkerAlt, FaCheckCircle, FaSpinner, FaCar, FaMap, FaPhoneAlt, FaWhatsapp, FaUserShield, FaTrash, FaExclamationTriangle, FaTimes, FaClock, FaHeart, FaRegHeart, FaCalendarPlus, FaHandHoldingUsd } from "react-icons/fa";
+import { propertiesAPI, enquiriesAPI, savedPropertiesAPI, visitsAPI, offersAPI, getErrorMessage } from "../api/api";
 import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -26,6 +26,20 @@ export default function PropertyDetailPage() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState("");
 
+  // Buyer actions: save, visit request, offer
+  const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [showVisitForm, setShowVisitForm] = useState(false);
+  const [visitData, setVisitData] = useState({ requested_date: "", message: "" });
+  const [visitStatus, setVisitStatus] = useState(""); // "success" | "error" | ""
+  const [visitError, setVisitError] = useState("");
+  const [isSubmittingVisit, setIsSubmittingVisit] = useState(false);
+  const [showOfferForm, setShowOfferForm] = useState(false);
+  const [offerData, setOfferData] = useState({ amount: "", message: "" });
+  const [offerStatus, setOfferStatus] = useState("");
+  const [offerError, setOfferError] = useState("");
+  const [isSubmittingOffer, setIsSubmittingOffer] = useState(false);
+
   useEffect(() => {
     const loadProperty = async () => {
       setIsLoading(true);
@@ -46,6 +60,68 @@ export default function PropertyDetailPage() {
     loadProperty();
   }, [id, navigate]);
 
+  useEffect(() => {
+    if (!user) return;
+    savedPropertiesAPI.list().then((data) => {
+      setIsSaved(data.items.some((item) => item.property_id === Number(id)));
+    }).catch(() => {});
+  }, [user, id]);
+
+  const handleToggleSave = async () => {
+    setIsSaving(true);
+    try {
+      if (isSaved) {
+        await savedPropertiesAPI.unsave(id);
+        setIsSaved(false);
+      } else {
+        await savedPropertiesAPI.save(id);
+        setIsSaved(true);
+      }
+    } catch {
+      // best-effort — no dedicated error UI for this quick toggle
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleVisitSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmittingVisit(true);
+    setVisitError("");
+    try {
+      await visitsAPI.create({
+        property_id: Number(id),
+        requested_date: new Date(visitData.requested_date).toISOString(),
+        message: visitData.message || undefined,
+      });
+      setVisitStatus("success");
+    } catch (err) {
+      setVisitStatus("error");
+      setVisitError(getErrorMessage(err, "Failed to request a visit."));
+    } finally {
+      setIsSubmittingVisit(false);
+    }
+  };
+
+  const handleOfferSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmittingOffer(true);
+    setOfferError("");
+    try {
+      await offersAPI.create({
+        property_id: Number(id),
+        amount: Number(offerData.amount),
+        message: offerData.message || undefined,
+      });
+      setOfferStatus("success");
+    } catch (err) {
+      setOfferStatus("error");
+      setOfferError(getErrorMessage(err, "Failed to submit your offer."));
+    } finally {
+      setIsSubmittingOffer(false);
+    }
+  };
+
   const handleEnquiryChange = (e) => {
     setEnquiryStatus("");
     setEnquiryError("");
@@ -62,8 +138,7 @@ export default function PropertyDetailPage() {
       setEnquiry({ name: "", email: "", phone: "", message: "" });
     } catch (err) {
       setEnquiryStatus("error");
-      const detail = err.response?.data?.detail;
-      setEnquiryError(Array.isArray(detail) ? "Please correct the highlighted enquiry details and try again." : detail || "Unable to send the enquiry right now. Please check your details and try again.");
+      setEnquiryError(getErrorMessage(err, "Unable to send the enquiry right now. Please check your details and try again."));
     } finally {
       setIsSubmitting(false);
     }
@@ -76,7 +151,7 @@ export default function PropertyDetailPage() {
       await propertiesAPI.delete(id);
       navigate("/listings");
     } catch (err) {
-      setDeleteError(err.response?.data?.detail || "Failed to delete listing.");
+      setDeleteError(getErrorMessage(err, "Failed to delete listing."));
       setIsDeleting(false);
     }
   };
@@ -201,7 +276,22 @@ export default function PropertyDetailPage() {
             )}
             <span className="text-zinc-400 text-xs capitalize bg-zinc-50 px-2 py-0.5 rounded">{property.property_type}</span>
           </div>
-          <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-zinc-900">{property.title}</h1>
+          <div className="flex items-start justify-between gap-4">
+            <h1 className="text-2xl md:text-3xl font-bold tracking-tight text-zinc-900">{property.title}</h1>
+            {user && !isOwner && (
+              <button
+                type="button"
+                onClick={handleToggleSave}
+                disabled={isSaving}
+                className={`shrink-0 inline-flex items-center gap-2 text-sm font-semibold px-3.5 py-2 rounded-lg border transition disabled:opacity-60 ${
+                  isSaved ? "bg-red-50 border-red-200 text-red-600" : "border-zinc-200 text-zinc-600 hover:border-zinc-400"
+                }`}
+              >
+                {isSaved ? <FaHeart /> : <FaRegHeart />}
+                {isSaved ? "Saved" : "Save"}
+              </button>
+            )}
+          </div>
           <p className="text-zinc-500 text-sm flex items-center gap-1.5 mt-2">
             <FaMapMarkerAlt className="text-zinc-400" />
             {property.locality ? `${property.locality}, ` : ""}{property.city}
@@ -378,6 +468,99 @@ export default function PropertyDetailPage() {
                   <FaWhatsapp /> WhatsApp
                 </a>
               </div>
+
+              {user && !isOwner && (
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <button
+                    type="button"
+                    onClick={() => { setShowVisitForm((v) => !v); setShowOfferForm(false); }}
+                    className="flex items-center justify-center gap-2 border border-zinc-200 hover:border-zinc-400 text-zinc-700 text-xs font-semibold px-3 py-3 rounded-lg transition"
+                  >
+                    <FaCalendarPlus /> Request Visit
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setShowOfferForm((v) => !v); setShowVisitForm(false); }}
+                    className="flex items-center justify-center gap-2 border border-zinc-200 hover:border-zinc-400 text-zinc-700 text-xs font-semibold px-3 py-3 rounded-lg transition"
+                  >
+                    <FaHandHoldingUsd /> Make Offer
+                  </button>
+                </div>
+              )}
+
+              {showVisitForm && (
+                <div className="mt-4 rounded-lg border border-zinc-200 p-4">
+                  {visitStatus === "success" ? (
+                    <p className="text-sm text-emerald-700 text-center">Visit requested! Track it under My Visits.</p>
+                  ) : (
+                    <form onSubmit={handleVisitSubmit} className="space-y-3">
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-500 mb-1 block">Preferred date &amp; time</label>
+                        <input
+                          type="datetime-local"
+                          required
+                          value={visitData.requested_date}
+                          onChange={(e) => setVisitData((p) => ({ ...p, requested_date: e.target.value }))}
+                          className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+                        />
+                      </div>
+                      <textarea
+                        rows={2}
+                        placeholder="Message (optional)"
+                        value={visitData.message}
+                        onChange={(e) => setVisitData((p) => ({ ...p, message: e.target.value }))}
+                        className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-400 resize-none bg-white"
+                      />
+                      {visitStatus === "error" && <p className="text-red-500 text-xs">{visitError}</p>}
+                      <button
+                        type="submit"
+                        disabled={isSubmittingVisit}
+                        className="w-full bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold py-2.5 rounded-lg transition"
+                      >
+                        {isSubmittingVisit ? "Submitting..." : "Request Visit"}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
+
+              {showOfferForm && (
+                <div className="mt-4 rounded-lg border border-zinc-200 p-4">
+                  {offerStatus === "success" ? (
+                    <p className="text-sm text-emerald-700 text-center">Offer submitted! Track it under My Offers.</p>
+                  ) : (
+                    <form onSubmit={handleOfferSubmit} className="space-y-3">
+                      <div>
+                        <label className="text-xs font-semibold text-zinc-500 mb-1 block">Your offer amount</label>
+                        <input
+                          type="number"
+                          required
+                          min="1"
+                          step="any"
+                          value={offerData.amount}
+                          onChange={(e) => setOfferData((p) => ({ ...p, amount: e.target.value }))}
+                          className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+                        />
+                      </div>
+                      <textarea
+                        rows={2}
+                        placeholder="Message (optional)"
+                        value={offerData.message}
+                        onChange={(e) => setOfferData((p) => ({ ...p, message: e.target.value }))}
+                        className="w-full border border-zinc-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-zinc-400 resize-none bg-white"
+                      />
+                      {offerStatus === "error" && <p className="text-red-500 text-xs">{offerError}</p>}
+                      <button
+                        type="submit"
+                        disabled={isSubmittingOffer}
+                        className="w-full bg-zinc-900 hover:bg-zinc-800 text-white text-xs font-semibold py-2.5 rounded-lg transition"
+                      >
+                        {isSubmittingOffer ? "Submitting..." : "Submit Offer"}
+                      </button>
+                    </form>
+                  )}
+                </div>
+              )}
 
               <div className="my-5 h-px bg-zinc-100" />
 

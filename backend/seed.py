@@ -16,6 +16,7 @@ import models  # noqa
 
 from core.security import hash_password
 from models.user import User
+from models.seller_profile import SellerProfile
 from models.property import Property, PropertyImage, ListingType, PropertyType, PropertyStatus
 from models.enquiry import Enquiry
 
@@ -50,6 +51,11 @@ def seed():
         db.add(admin)
 
         # ---- Create Regular Users ----
+        # Every account is a buyer by default. Rahul and Priya additionally
+        # have a seller profile activated on the SAME account (Rahul's is
+        # verified, Priya's is still pending review) — demonstrating that
+        # one account can hold both a buyer and a seller profile. Anjali
+        # has no seller profile, for testing buyer-only restrictions.
         user1 = User(
             full_name="Rahul Sharma",
             email="rahul@example.com",
@@ -62,8 +68,20 @@ def seed():
             hashed_password=hash_password("password123"),
             phone="9123456789",
         )
-        db.add_all([user1, user2])
+        user3 = User(
+            full_name="Anjali Singh",
+            email="anjali@example.com",
+            hashed_password=hash_password("password123"),
+            phone="9988001122",
+        )
+        db.add_all([user1, user2, user3])
         db.flush()  # flush to get IDs
+
+        db.add_all([
+            SellerProfile(user_id=user1.id, business_name="Rahul Sharma Realty", seller_status="verified"),
+            SellerProfile(user_id=user2.id, business_name="Priya Mehta Properties", seller_status="pending"),
+        ])
+        db.flush()
 
         print("[Success] Users created.")
         print("[Seed] Seeding properties...")
@@ -276,9 +294,10 @@ def seed():
         print("DATABASE SEEDED SUCCESSFULLY!")
         print("="*50)
         print("\nLOGIN CREDENTIALS:")
-        print("  Admin  -> admin@evahomes.com  / admin123")
-        print("  User 1 -> rahul@example.com   / password123")
-        print("  User 2 -> priya@example.com   / password123")
+        print("  Admin                        -> admin@evahomes.com  / admin123")
+        print("  Buyer + Seller (verified)    -> rahul@example.com   / password123")
+        print("  Buyer + Seller (pending)     -> priya@example.com   / password123")
+        print("  Buyer only (no seller yet)   -> anjali@example.com  / password123")
         print("\nStart the server: uvicorn main:app --reload")
         print("View API docs:   http://localhost:8000/docs\n")
 

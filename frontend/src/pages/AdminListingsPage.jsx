@@ -6,7 +6,7 @@ import {
 import { Link, Navigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { propertiesAPI } from "../api/api";
+import { propertiesAPI, getErrorMessage } from "../api/api";
 import { useAuth } from "../context/AuthContext";
 
 const initialFilters = {
@@ -98,7 +98,7 @@ export default function AdminListingsPage() {
         });
         setData(response);
       } catch (err) {
-        setError(err.response?.data?.detail || "Failed to load properties.");
+        setError(getErrorMessage(err, "Failed to load properties."));
       } finally {
         setIsLoading(false);
       }
@@ -129,7 +129,7 @@ export default function AdminListingsPage() {
         ),
       }));
     } catch (err) {
-      setError(err.response?.data?.detail || "Failed to update property.");
+      setError(getErrorMessage(err, "Failed to update property."));
     } finally {
       setActiveId(null);
     }
@@ -147,7 +147,7 @@ export default function AdminListingsPage() {
       }));
       setDeleteTarget(null);
     } catch (err) {
-      setError(err.response?.data?.detail || "Failed to delete property.");
+      setError(getErrorMessage(err, "Failed to delete property."));
       setDeleteTarget(null);
     } finally {
       setIsDeleting(false);

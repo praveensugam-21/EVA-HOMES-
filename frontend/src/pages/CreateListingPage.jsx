@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaHome, FaUpload, FaSpinner, FaTimes, FaMapMarkerAlt, FaMagic, FaClock, FaCheckCircle } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
-import { propertiesAPI } from "../api/api";
+import { propertiesAPI, getErrorMessage } from "../api/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
@@ -211,7 +211,7 @@ export default function CreateListingPage() {
       const newProperty = await propertiesAPI.create(payload);
       setSubmittedProperty(newProperty);
     } catch (err) {
-      const msg = err.response?.data?.detail || "Failed to create listing. Please verify input fields.";
+      const msg = getErrorMessage(err, "Failed to create listing. Please verify input fields.");
       setError(Array.isArray(msg) ? "Validation Error. Check form fields." : msg);
     } finally {
       setIsSubmitting(false);

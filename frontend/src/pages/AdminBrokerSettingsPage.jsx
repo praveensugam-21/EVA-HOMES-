@@ -1,15 +1,18 @@
 import { useEffect, useState } from "react";
-import { FaArrowLeft, FaPhoneAlt, FaSave, FaSpinner, FaUserShield, FaWhatsapp } from "react-icons/fa";
+import { FaArrowLeft, FaPhoneAlt, FaQrcode, FaSave, FaSpinner, FaUpload, FaUserShield, FaWhatsapp } from "react-icons/fa";
 import { Link, Navigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
-import { settingsAPI, getErrorMessage } from "../api/api";
+import { propertiesAPI, settingsAPI, getErrorMessage } from "../api/api";
 import { useAuth } from "../context/AuthContext";
 
 const initialForm = {
   broker_name: "",
   broker_phone: "",
   broker_whatsapp: "",
+  payment_qr_image_url: "",
+  payment_phone: "",
+  unlock_fee: "20",
 };
 
 export default function AdminBrokerSettingsPage() {
@@ -17,6 +20,7 @@ export default function AdminBrokerSettingsPage() {
   const [formData, setFormData] = useState(initialForm);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingQr, setIsUploadingQr] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -34,6 +38,9 @@ export default function AdminBrokerSettingsPage() {
           broker_name: data.broker_name,
           broker_phone: data.broker_phone,
           broker_whatsapp: data.broker_whatsapp,
+          payment_qr_image_url: data.payment_qr_image_url || "",
+          payment_phone: data.payment_phone || "",
+          unlock_fee: String(data.unlock_fee ?? 20),
         });
       } catch (err) {
         setError(getErrorMessage(err, "Failed to load broker settings."));
@@ -67,11 +74,17 @@ export default function AdminBrokerSettingsPage() {
     setSuccess("");
 
     try {
-      const updated = await settingsAPI.updateBrokerContact(formData);
+      const updated = await settingsAPI.updateBrokerContact({
+        ...formData,
+        unlock_fee: formData.unlock_fee ? parseFloat(formData.unlock_fee) : undefined,
+      });
       setFormData({
         broker_name: updated.broker_name,
         broker_phone: updated.broker_phone,
         broker_whatsapp: updated.broker_whatsapp,
+        payment_qr_image_url: updated.payment_qr_image_url || "",
+        payment_phone: updated.payment_phone || "",
+        unlock_fee: String(updated.unlock_fee ?? 20),
       });
       setSuccess("Broker contact details updated successfully.");
     } catch (err) {
@@ -81,35 +94,50 @@ export default function AdminBrokerSettingsPage() {
     }
   };
 
+  const handleQrUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingQr(true);
+    setError("");
+    try {
+      const { url } = await propertiesAPI.uploadImage(file);
+      setFormData((prev) => ({ ...prev, payment_qr_image_url: url }));
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to upload QR code image."));
+    } finally {
+      setIsUploadingQr(false);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen bg-surface">
       <Navbar />
       <main className="pt-24 pb-16 px-6">
         <div className="max-w-4xl mx-auto">
-          <Link to="/admin/enquiries" className="inline-flex items-center gap-2 text-sm font-medium text-zinc-500 hover:text-zinc-900 transition">
+          <Link to="/admin/enquiries" className="inline-flex items-center gap-2 text-sm font-medium text-muted hover:text-ink transition">
             <FaArrowLeft className="text-xs" />
             Back to enquiries
           </Link>
 
-          <div className="mt-5 bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden">
-            <div className="px-8 py-7 border-b border-zinc-100 bg-gradient-to-r from-zinc-950 via-zinc-900 to-zinc-800 text-white">
+          <div className="mt-5 bg-white border-2 border-ink rounded-xl overflow-hidden">
+            <div className="px-8 py-7 border-b border-line-soft bg-gradient-to-r from-ink via-ink to-accent-hover text-white">
               <div className="flex items-center gap-3">
                 <div className="h-11 w-11 rounded-lg bg-white/10 flex items-center justify-center">
                   <FaUserShield />
                 </div>
                 <div>
-                  <p className="text-xs uppercase tracking-[0.18em] text-zinc-300">Admin Settings</p>
+                  <p className="text-xs uppercase tracking-[0.18em] text-faint">Admin Settings</p>
                   <h1 className="text-2xl font-bold tracking-tight">Broker Contact</h1>
                 </div>
               </div>
-              <p className="mt-4 text-sm text-zinc-300 max-w-2xl">
+              <p className="mt-4 text-sm text-faint max-w-2xl">
                 Update the phone numbers shown on every property page for call and WhatsApp contact.
               </p>
             </div>
 
             <div className="p-8">
               {isLoading ? (
-                <div className="min-h-56 flex items-center justify-center text-zinc-500">
+                <div className="min-h-56 flex items-center justify-center text-muted">
                   <FaSpinner className="animate-spin text-xl" />
                 </div>
               ) : (
@@ -128,20 +156,20 @@ export default function AdminBrokerSettingsPage() {
 
                   <div className="grid md:grid-cols-2 gap-5">
                     <label className="block">
-                      <span className="block text-xs font-semibold text-zinc-500 mb-1.5">Broker Name</span>
+                      <span className="block text-xs font-semibold text-muted mb-1.5">Broker Name</span>
                       <input
                         type="text"
                         name="broker_name"
                         value={formData.broker_name}
                         onChange={handleChange}
                         required
-                        className="w-full border border-zinc-200 rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+                        className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white"
                       />
                     </label>
 
-                    <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-4">
-                      <p className="text-xs font-semibold text-zinc-500 mb-2">Where this appears</p>
-                      <p className="text-sm text-zinc-700 leading-relaxed">
+                    <div className="rounded-lg border border-line bg-surface px-4 py-4">
+                      <p className="text-xs font-semibold text-muted mb-2">Where this appears</p>
+                      <p className="text-sm text-ink-soft leading-relaxed">
                         Property detail pages, call button links, WhatsApp links, and broker contact API responses.
                       </p>
                     </div>
@@ -149,7 +177,7 @@ export default function AdminBrokerSettingsPage() {
 
                   <div className="grid md:grid-cols-2 gap-5">
                     <label className="block">
-                      <span className="flex items-center gap-2 text-xs font-semibold text-zinc-500 mb-1.5">
+                      <span className="flex items-center gap-2 text-xs font-semibold text-muted mb-1.5">
                         <FaPhoneAlt className="text-[10px]" />
                         Call Number
                       </span>
@@ -159,12 +187,12 @@ export default function AdminBrokerSettingsPage() {
                         value={formData.broker_phone}
                         onChange={handleChange}
                         required
-                        className="w-full border border-zinc-200 rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+                        className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white"
                       />
                     </label>
 
                     <label className="block">
-                      <span className="flex items-center gap-2 text-xs font-semibold text-zinc-500 mb-1.5">
+                      <span className="flex items-center gap-2 text-xs font-semibold text-muted mb-1.5">
                         <FaWhatsapp className="text-[10px]" />
                         WhatsApp Number
                       </span>
@@ -174,23 +202,78 @@ export default function AdminBrokerSettingsPage() {
                         value={formData.broker_whatsapp}
                         onChange={handleChange}
                         required
-                        className="w-full border border-zinc-200 rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+                        className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white"
                       />
                     </label>
                   </div>
 
-                  <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-4">
-                    <p className="text-xs font-semibold text-zinc-500 mb-2">Format guidance</p>
-                    <p className="text-sm text-zinc-700">
+                  <div className="rounded-lg border border-line bg-surface px-4 py-4">
+                    <p className="text-xs font-semibold text-muted mb-2">Format guidance</p>
+                    <p className="text-sm text-ink-soft">
                       Use international format where possible, for example <span className="font-semibold">+919900612425</span>.
                     </p>
+                  </div>
+
+                  <div className="border-t-2 border-ink pt-6">
+                    <h2 className="text-base font-bold text-ink flex items-center gap-2">
+                      <FaQrcode className="text-muted" /> Location &amp; Phone Unlock Payment
+                    </h2>
+                    <p className="text-sm text-muted mt-1 mb-5">
+                      Shown to buyers who want to unlock a listing's exact map location and the owner's real phone
+                      number. Payment is offline (UPI) — you verify it manually from the Payments admin page.
+                    </p>
+
+                    <div className="grid md:grid-cols-2 gap-5">
+                      <label className="block">
+                        <span className="block text-xs font-semibold text-muted mb-1.5">Unlock Fee (₹)</span>
+                        <input
+                          type="number"
+                          name="unlock_fee"
+                          min="0"
+                          step="1"
+                          value={formData.unlock_fee}
+                          onChange={handleChange}
+                          className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white"
+                        />
+                      </label>
+
+                      <label className="block">
+                        <span className="block text-xs font-semibold text-muted mb-1.5">UPI Payment Phone Number</span>
+                        <input
+                          type="tel"
+                          name="payment_phone"
+                          value={formData.payment_phone}
+                          onChange={handleChange}
+                          placeholder="e.g. +919900612425"
+                          className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white"
+                        />
+                      </label>
+                    </div>
+
+                    <div className="mt-5">
+                      <span className="block text-xs font-semibold text-muted mb-1.5">UPI QR Code Image</span>
+                      <div className="flex items-center gap-4">
+                        {formData.payment_qr_image_url && (
+                          <img
+                            src={formData.payment_qr_image_url}
+                            alt="Payment QR code"
+                            className="w-24 h-24 object-contain border-2 border-ink rounded-lg"
+                          />
+                        )}
+                        <label className="inline-flex items-center gap-2 border border-line hover:border-ink text-ink-soft text-sm font-semibold px-4 py-2.5 rounded-lg cursor-pointer transition">
+                          {isUploadingQr ? <FaSpinner className="animate-spin text-xs" /> : <FaUpload className="text-xs" />}
+                          {isUploadingQr ? "Uploading..." : formData.payment_qr_image_url ? "Replace QR" : "Upload QR"}
+                          <input type="file" accept="image/*" onChange={handleQrUpload} className="hidden" disabled={isUploadingQr} />
+                        </label>
+                      </div>
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-end">
                     <button
                       type="submit"
                       disabled={isSaving}
-                      className="inline-flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 disabled:bg-zinc-700 text-white text-sm font-semibold px-5 py-3 rounded-lg transition"
+                      className="inline-flex items-center gap-2 bg-ink hover:bg-accent-hover disabled:bg-ink-soft text-white text-sm font-semibold px-5 py-3 rounded-lg transition"
                     >
                       {isSaving ? <FaSpinner className="animate-spin" /> : <FaSave className="text-xs" />}
                       {isSaving ? "Saving..." : "Save Changes"}

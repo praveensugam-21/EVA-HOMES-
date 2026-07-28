@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Optional
 from pydantic import BaseModel, field_validator
 
 
@@ -33,11 +34,40 @@ class BrokerSettingsBase(BaseModel):
 
 
 class BrokerSettingsUpdate(BrokerSettingsBase):
-    pass
+    # Offline/manual payment details for the location+phone unlock feature.
+    # Optional so admin can save broker-contact edits without having to
+    # resend these every time (and vice versa).
+    payment_qr_image_url: Optional[str] = None
+    payment_phone: Optional[str] = None
+    unlock_fee: Optional[float] = None
+
+    @field_validator("payment_phone")
+    @classmethod
+    def validate_payment_phone(cls, value):
+        if not value:
+            return value
+        return normalize_phone(value)
+
+    @field_validator("unlock_fee")
+    @classmethod
+    def validate_unlock_fee(cls, value):
+        if value is not None and value < 0:
+            raise ValueError("Unlock fee cannot be negative.")
+        return value
 
 
 class BrokerSettingsResponse(BrokerSettingsBase):
     id: int
+    payment_qr_image_url: Optional[str] = None
+    payment_phone: Optional[str] = None
+    unlock_fee: float
     updated_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PaymentInfoResponse(BaseModel):
+    """Public-facing subset — what a buyer needs to see to pay the unlock fee."""
+    payment_qr_image_url: Optional[str] = None
+    payment_phone: Optional[str] = None
+    unlock_fee: float

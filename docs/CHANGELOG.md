@@ -4,6 +4,75 @@ A running, plain-English summary of what changed and why — kept up to date aft
 
 ---
 
+## 2026-07-28 (final) — Full documentation sync
+
+Brought every doc up to date with everything built this session (location-unlock feature, GPS map picker, multi-photo uploads, admin exclusivity, parking type, upload/rate limits, pending-count badge):
+
+- `docs/tobedone.md` — moved the 6 audit items to Done, added the still-open forgot-password gap, added new "after launch" items (lat/lng radius search, gallery grouping).
+- `docs/PROJECT_GUIDE.md` — new "Location & Owner-Phone Unlock" and "GPS Map Picker & Multi-Photo Uploads" sections, updated folder tree, API route list, and admin description (manages, doesn't participate).
+- `README.md` — feature list per role updated, upload cap documented, folder tree updated.
+- `docs/BROKER_CONTACT_FLOW.md` — new "Paid Exception" section explaining how the location-unlock feature deliberately bypasses the masked-contact model for verified, paying buyers only.
+- `docs/pro.md` — added `PropertyUnlock` to the data model table, updated buyer/admin journeys, added two new "what I learned" points (admin exclusivity enforced server-side, the unlock feature as a second zero-infrastructure-cost monetization mechanic).
+- `docs/ERROR.md` — logged two real bugs hit this session: the SQLAlchemy `Enum` name-vs-value migration bug, and the nested-`<form>` bug in `LocationPicker`.
+
+---
+
+## 2026-07-28 (very late) — Closed all 6 gaps found in the post-launch feature audit
+
+Fixed every item identified when re-auditing the location-unlock, GPS picker, and multi-photo-upload features added earlier this session:
+
+- **Upload size/count limits**: `upload_image()` now streams to disk in 1MB chunks, counts bytes, and aborts + deletes the partial file with a 413 if it exceeds 5MB — verified live with a real 6MB upload attempt (rejected, no orphaned file left behind). Frontend also caps each room at 10 photos and pre-filters oversized files client-side before even attempting the upload.
+- **Rate limit on unlock-request**: 5 requests / 5 minutes per user, same `rate_limiter` pattern used everywhere else in the app — verified live, the 6th rapid request in a row correctly got a 429.
+- **Admin alert for pending unlocks**: `GET /api/unlocks` now returns `pending_count`; the Navbar's "Payments" link shows a red badge with the live count (both desktop and mobile menus) whenever an admin is logged in.
+- **Lat/lng columns added to `Property`** (nullable, Alembic migration, no data loss) — `LocationPicker`'s pin now writes real `latitude`/`longitude` alongside `google_maps_link`, verified round-tripping correctly through the API. Nothing reads them yet; this is groundwork for a future "properties near me" radius search.
+- **Pinned-location vs. typed-city mismatch warning**: soft, non-blocking check — if the reverse-geocoded address for the map pin doesn't contain the typed City field, a small amber warning shows under the City input so the seller can catch an honest mistake (pinning the wrong spot, or a typo in the city name) without being forced to fix it.
+- **Extra room photos now numbered in the gallery** (e.g. "Kitchen 1/3", "Kitchen 2/3") instead of three flat tiles all just labeled "Kitchen".
+
+Verified end-to-end: full pytest suite (15/15), a clean production build, and live tests against the running backend for the upload cap, the rate limit, and the pending-count badge.
+
+## 2026-07-28 (later night) — Paid location/phone unlock, parking type
+
+New monetization feature: exact map location and the seller's real phone number are now paywalled per listing, unlocked via an offline UPI payment that admin verifies manually (no payment gateway).
+
+- **New `PropertyUnlock` table**: one row per (buyer, property), status `pending`/`verified`/`rejected`, optional payment reference. Unique per buyer+property — re-requesting after a rejection updates the same row instead of piling up duplicates.
+- **`BrokerSettings` extended** with `payment_qr_image_url`, `payment_phone`, `unlock_fee` (defaults to ₹20) — editable from Admin → Broker Settings, with a QR image upload.
+- **New public endpoint** `GET /api/settings/payment-info` — just the QR/phone/fee, for the unlock card on the property page.
+- **New `unlocks.py` router**: `POST /api/properties/{id}/unlock-request` (buyer claims payment), `GET /api/unlocks/mine` (buyer's own requests), `GET /api/unlocks` + `PUT /api/unlocks/{id}` (admin lists and verifies/rejects — buyer gets notified either way).
+- **`GET /api/properties/{id}` and `.../contact` now gate on unlock status**: `google_maps_link` is nulled out and the real owner phone is withheld unless the caller owns the listing, is an admin, or has a `verified` unlock for that specific property. Verified end-to-end: a fresh unlock → pending → admin verifies → buyer's next request to the same endpoints returns the real data, no reload-and-hope.
+- **New pages**: buyer-side `My Unlocks` (dashboard sidebar), admin-side `Payment Verifications` (Navbar admin links) — verify/reject with one click, buyer + property + reference shown together.
+- **Parking replaced**: `has_parking` (boolean) → `parking_type` (`none`/`open`/`closed`) on `Property` — a real Alembic migration, not a manual patch; existing `has_parking=true` rows were backfilled to `open` rather than silently losing that data. Hit and fixed one real bug during this: SQLAlchemy's `Enum` column stores the Python member *name* (`OPEN`), not its lowercase `.value` (`open`) — the first migration attempt wrote lowercase and 500'd on every read until caught and corrected.
+
+Every piece tested against the running backend before moving to the next (unlock request → admin verify → buyer sees unlocked data → settings update → payment-info reflects it), plus the full pytest suite (15/15) and a clean production build at the end.
+
+## 2026-07-28 (night) — Admin is a manager, not a marketplace participant
+
+Previously an admin account could also act as a buyer/seller — `get_seller_user` explicitly bypassed the seller-profile check for admins, so admin could create listings, and nothing stopped an admin from submitting enquiries, requesting visits, making offers, saving properties, or activating a seller profile. Closed all of that:
+
+- **Backend**: added an explicit `is_admin` check (403) to seller-profile creation, listing creation (`get_seller_user` no longer bypasses for admins), enquiry submission, visit requests, offers, and saved-properties — verified live against the real seeded admin account, all six return 403 with a clear reason.
+- **Frontend**: `Navbar` no longer shows "Dashboard" or "+ List Property" for admin accounts; `SellerRoute` in `App.jsx` no longer lets admin through to seller-dashboard pages (it would have been a dead end anyway now that the backend rejects those calls).
+- Admin's actual management powers — moderating any listing, editing/deactivating any user, replying to any enquiry — go through separate `get_admin_user`/inline `is_admin` checks that were untouched, and are confirmed still working.
+
+Also reorganized `AdminUsersPage.jsx` per the same principle plus a "show everything" request: an admin row no longer shows a misleading "Buyer" badge (only real buyer/seller accounts get that badge now), and every user's card now shows their full profile — phone + verification status, email verification, city, address, bio, account ID, join date, and (for real sellers) business name and seller-since date — organized into one labeled details grid instead of the previous two-field summary.
+
+Confirmed with the full test suite (15/15 pass) and a clean production build both before and after.
+
+## 2026-07-28 (evening) — Site-wide visual redesign
+
+Redesigned the public home page (Navbar, Hero, Featured, Cities, WhyUs, Steps, Footer) around a real design system instead of raw Tailwind defaults: a considered neutral scale (`ink`/`ink-soft`/`muted`/`faint`/`line`/`surface`) plus one deliberate accent — later dropped in favor of pure black/white/grey per feedback, with black borders on every card. Typography moved from a single all-purpose Poppins to a real pairing (Outfit for headings, Plus Jakarta Sans for body), registered as Tailwind v4 `@theme` tokens (`font-display`, `bg-ink`, etc.) rather than hardcoded hex values, so the whole system lives in one place (`index.css`).
+
+Then extended that same system to **every remaining page** — all 27 remaining frontend files (every dashboard page, both auth pages, all three admin pages, property detail, create-listing, profile) — via a scripted `zinc-*` → design-token migration (746 class replacements) rather than hand-editing each file, so the whole app now shares one consistent visual language instead of only the home page. Verified with a full production build (`vite build`) afterward — compiles clean, no leftover `zinc-*` classes anywhere.
+
+Also: removed the `Testimonials` section entirely (fabricated client quotes shouldn't ship) and added a monochrome shimmer/pulse/twinkle animation to the "How It Works" step circles, staggered so it ripples down the sequence — respects `prefers-reduced-motion`.
+
+Added the contact email (`evahomes360@gmail.com`) to the footer.
+
+## 2026-07-28 (later) — Full frontend audit: 3 bugs found and fixed
+
+Went through every remaining unchecked page (19 total: `PropertyDetailPage`'s visit/offer forms, every buyer/seller dashboard page, all three admin pages, Profile/CreateListing/Notifications) and cross-checked each one's API calls against the actual backend routes and response shapes. 16 were clean. Found and fixed 3 real bugs:
+
+- **Sellers couldn't update their own received enquiries.** `SellerEnquiriesPage.jsx`'s "Mark new/contacted/closed" buttons called `PUT /api/enquiries/{id}`, but that endpoint was admin-only — every click silently 403'd for any seller who wasn't also an admin. Fixed by allowing the property's owner to update `status`/`is_read` too; `broker_notes` (the buyer-facing reply channel) stays admin-only either way. Verified live: the property owner now gets 200, a non-owner still correctly gets 403, and a non-admin owner still can't touch `broker_notes`.
+- **Price displayed twice, garbled** on `SavedPropertiesPage.jsx` and `MyListingsPage.jsx` — both rendered `${price} ${price_label}` when `price_label` is already a complete string (e.g. "₹85 Lakhs"), producing things like "8500000 ₹85 Lakhs". Every other page in the app does `price_label || fallback` correctly; these two didn't. Fixed to match.
+
 ## 2026-07-28 — Broker replies, Google Sign-In, production hardening pass, repo cleanup & doc reorg
 
 ### Broker ↔ buyer communication

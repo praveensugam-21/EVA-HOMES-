@@ -28,6 +28,7 @@ from routers import (
     properties,
     saved_properties,
     settings as settings_router,
+    unlocks,
     visits,
 )
 
@@ -176,6 +177,7 @@ app.include_router(saved_properties.router)
 app.include_router(visits.router)
 app.include_router(offers.router)
 app.include_router(notifications.router)
+app.include_router(unlocks.router)
 
 @app.get("/", tags=["Health"])
 def root():

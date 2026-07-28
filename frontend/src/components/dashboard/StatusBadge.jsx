@@ -8,19 +8,19 @@ const STATUS_STYLES = {
   new: "bg-blue-100 text-blue-700",
   read: "bg-blue-100 text-blue-700",
   contacted: "bg-indigo-100 text-indigo-700",
-  closed: "bg-zinc-200 text-zinc-700",
+  closed: "bg-line text-ink-soft",
   rejected: "bg-red-100 text-red-700",
-  cancelled: "bg-zinc-200 text-zinc-700",
-  withdrawn: "bg-zinc-200 text-zinc-700",
-  unverified: "bg-zinc-200 text-zinc-700",
-  inactive: "bg-zinc-200 text-zinc-700",
+  cancelled: "bg-line text-ink-soft",
+  withdrawn: "bg-line text-ink-soft",
+  unverified: "bg-line text-ink-soft",
+  inactive: "bg-line text-ink-soft",
   sold: "bg-purple-100 text-purple-700",
   rented: "bg-purple-100 text-purple-700",
   completed: "bg-emerald-100 text-emerald-700",
 };
 
 export default function StatusBadge({ status }) {
-  const style = STATUS_STYLES[status] || "bg-zinc-200 text-zinc-700";
+  const style = STATUS_STYLES[status] || "bg-line text-ink-soft";
   return (
     <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider ${style}`}>
       {status}

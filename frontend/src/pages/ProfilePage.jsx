@@ -14,7 +14,7 @@ import { authAPI, getErrorMessage } from "../api/api";
 import { useAuth } from "../context/AuthContext";
 
 const SELLER_STATUS_META = {
-  unverified: { label: "Unverified", color: "bg-zinc-200 text-zinc-700", icon: FaClock },
+  unverified: { label: "Unverified", color: "bg-line text-ink-soft", icon: FaClock },
   pending: { label: "Pending Review", color: "bg-amber-100 text-amber-700", icon: FaClock },
   verified: { label: "Verified Seller", color: "bg-emerald-100 text-emerald-700", icon: FaCheckCircle },
   rejected: { label: "Verification Rejected", color: "bg-red-100 text-red-700", icon: FaTimesCircle },
@@ -120,13 +120,13 @@ export default function ProfilePage() {
   return (
     <DashboardLayout title="Profile">
       <div className="flex items-center gap-4">
-        <div className="w-16 h-16 rounded-full bg-zinc-100 border border-zinc-200 flex items-center justify-center">
-          <FaUserCircle className="text-zinc-400 text-4xl" />
+        <div className="w-16 h-16 rounded-full bg-surface border border-line flex items-center justify-center">
+          <FaUserCircle className="text-faint text-4xl" />
         </div>
         <div>
-          <h2 className="text-xl font-bold tracking-tight text-zinc-950">{user.full_name}</h2>
+          <h2 className="text-xl font-bold tracking-tight text-ink">{user.full_name}</h2>
           <div className="flex items-center gap-2 mt-1">
-            <span className="px-2.5 py-1 rounded-full bg-zinc-100 text-zinc-700 text-[11px] font-semibold uppercase tracking-wider">
+            <span className="px-2.5 py-1 rounded-full bg-surface text-ink-soft text-[11px] font-semibold uppercase tracking-wider">
               Buyer
             </span>
             {hasSellerProfile && (
@@ -139,12 +139,12 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className="flex gap-2 border-b border-zinc-200">
+      <div className="flex gap-2 border-b border-line">
         <button
           type="button"
           onClick={() => setActiveTab("buyer")}
           className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition ${
-            activeTab === "buyer" ? "border-zinc-900 text-zinc-950" : "border-transparent text-zinc-500 hover:text-zinc-800"
+            activeTab === "buyer" ? "border-ink text-ink" : "border-transparent text-muted hover:text-ink"
           }`}
         >
           Buyer Profile
@@ -153,7 +153,7 @@ export default function ProfilePage() {
           type="button"
           onClick={() => setActiveTab("seller")}
           className={`px-4 py-2.5 text-sm font-semibold border-b-2 transition ${
-            activeTab === "seller" ? "border-zinc-900 text-zinc-950" : "border-transparent text-zinc-500 hover:text-zinc-800"
+            activeTab === "seller" ? "border-ink text-ink" : "border-transparent text-muted hover:text-ink"
           }`}
         >
           Seller Profile
@@ -161,8 +161,8 @@ export default function ProfilePage() {
       </div>
 
       {activeTab === "buyer" && (
-        <section className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-bold text-zinc-950 mb-4">Profile Details</h2>
+        <section className="bg-white border-2 border-ink rounded-xl p-6">
+          <h2 className="text-lg font-bold text-ink mb-4">Profile Details</h2>
 
           {error && (
             <div className="bg-red-50 border border-red-100 text-red-700 rounded-lg p-3 mb-4 text-xs font-medium">
@@ -178,50 +178,50 @@ export default function ProfilePage() {
           <form onSubmit={handleSave} className="space-y-4">
             <div className="grid sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-zinc-600 text-xs font-semibold mb-1.5">Full Name</label>
+                <label className="block text-ink-soft text-xs font-semibold mb-1.5">Full Name</label>
                 <input
                   type="text"
                   name="full_name"
                   value={formData.full_name}
                   onChange={handleChange}
-                  className="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+                  className="w-full border border-line rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-ink bg-white"
                 />
               </div>
               <div>
-                <label className="block text-zinc-600 text-xs font-semibold mb-1.5">Phone</label>
+                <label className="block text-ink-soft text-xs font-semibold mb-1.5">Phone</label>
                 <input
                   type="tel"
                   name="phone"
                   value={formData.phone}
                   onChange={handleChange}
                   placeholder="9876543210"
-                  className="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+                  className="w-full border border-line rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-ink bg-white"
                 />
               </div>
               <div>
-                <label className="block text-zinc-600 text-xs font-semibold mb-1.5">City</label>
+                <label className="block text-ink-soft text-xs font-semibold mb-1.5">City</label>
                 <input
                   type="text"
                   name="city"
                   value={formData.city}
                   onChange={handleChange}
                   placeholder="Mumbai"
-                  className="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+                  className="w-full border border-line rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-ink bg-white"
                 />
               </div>
               <div>
-                <label className="block text-zinc-600 text-xs font-semibold mb-1.5">Address</label>
+                <label className="block text-ink-soft text-xs font-semibold mb-1.5">Address</label>
                 <input
                   type="text"
                   name="address"
                   value={formData.address}
                   onChange={handleChange}
-                  className="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+                  className="w-full border border-line rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-ink bg-white"
                 />
               </div>
             </div>
             <div>
-              <label className="block text-zinc-600 text-xs font-semibold mb-1.5">Bio</label>
+              <label className="block text-ink-soft text-xs font-semibold mb-1.5">Bio</label>
               <textarea
                 name="bio"
                 value={formData.bio}
@@ -229,14 +229,14 @@ export default function ProfilePage() {
                 rows={3}
                 maxLength={500}
                 placeholder="A short note about yourself..."
-                className="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400 bg-white resize-none"
+                className="w-full border border-line rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-ink bg-white resize-none"
               />
             </div>
 
             <button
               type="submit"
               disabled={isSaving}
-              className="inline-flex items-center gap-2 bg-zinc-900 hover:bg-zinc-800 disabled:bg-zinc-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition"
+              className="inline-flex items-center gap-2 bg-ink hover:bg-accent-hover disabled:bg-ink-soft text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition"
             >
               {isSaving ? <FaSpinner className="animate-spin text-xs" /> : <FaSave className="text-xs" />}
               Save Changes
@@ -246,10 +246,10 @@ export default function ProfilePage() {
       )}
 
       {activeTab === "seller" && !hasSellerProfile && (
-        <section className="bg-white border border-zinc-200 rounded-xl shadow-sm p-8 text-center">
-          <FaHandshake className="text-zinc-300 text-4xl mx-auto mb-3" />
-          <h2 className="text-lg font-bold text-zinc-950 mb-1">Start Selling on This Account</h2>
-          <p className="text-sm text-zinc-500 max-w-md mx-auto mb-5">
+        <section className="bg-white border-2 border-ink rounded-xl p-8 text-center">
+          <FaHandshake className="text-faint text-4xl mx-auto mb-3" />
+          <h2 className="text-lg font-bold text-ink mb-1">Start Selling on This Account</h2>
+          <p className="text-sm text-muted max-w-md mx-auto mb-5">
             Activate a seller profile to list properties — no new account needed. You'll keep
             your buyer profile exactly as it is, and can upload verification documents afterwards.
           </p>
@@ -266,13 +266,13 @@ export default function ProfilePage() {
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
               placeholder="Business name (optional)"
-              className="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+              className="w-full border border-line rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-ink bg-white"
             />
             <button
               type="button"
               onClick={handleActivateSeller}
               disabled={isActivating}
-              className="w-full inline-flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 disabled:bg-zinc-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition"
+              className="w-full inline-flex items-center justify-center gap-2 bg-ink hover:bg-accent-hover disabled:bg-ink-soft text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition"
             >
               {isActivating ? <FaSpinner className="animate-spin text-xs" /> : <FaHandshake className="text-xs" />}
               Activate Seller Profile
@@ -282,8 +282,8 @@ export default function ProfilePage() {
       )}
 
       {activeTab === "seller" && hasSellerProfile && (
-        <section className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6">
-          <h2 className="text-lg font-bold text-zinc-950 mb-4">Business Details</h2>
+        <section className="bg-white border-2 border-ink rounded-xl p-6">
+          <h2 className="text-lg font-bold text-ink mb-4">Business Details</h2>
 
           {sellerError && (
             <div className="bg-red-50 border border-red-100 text-red-700 rounded-lg p-3 mb-4 text-xs font-medium">
@@ -302,21 +302,21 @@ export default function ProfilePage() {
               value={businessName}
               onChange={(e) => setBusinessName(e.target.value)}
               placeholder="Business name (optional)"
-              className="flex-1 border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+              className="flex-1 border border-line rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-ink bg-white"
             />
             <button
               type="submit"
               disabled={isSavingBusiness}
-              className="inline-flex items-center justify-center gap-2 bg-zinc-900 hover:bg-zinc-800 disabled:bg-zinc-700 text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition whitespace-nowrap"
+              className="inline-flex items-center justify-center gap-2 bg-ink hover:bg-accent-hover disabled:bg-ink-soft text-white font-semibold px-5 py-2.5 rounded-lg text-sm transition whitespace-nowrap"
             >
               {isSavingBusiness ? <FaSpinner className="animate-spin text-xs" /> : <FaSave className="text-xs" />}
               Save
             </button>
           </form>
 
-          <p className="text-sm text-zinc-500 mt-5">
+          <p className="text-sm text-muted mt-5">
             Manage your verification documents and status from{" "}
-            <Link to="/dashboard/seller/verification" className="font-semibold text-zinc-900 underline">
+            <Link to="/dashboard/seller/verification" className="font-semibold text-ink underline">
               Verification
             </Link>{" "}
             in the seller dashboard.

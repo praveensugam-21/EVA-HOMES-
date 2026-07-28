@@ -61,7 +61,7 @@ export default function NotificationsPage() {
             type="button"
             disabled={isMarkingAll}
             onClick={handleMarkAll}
-            className="inline-flex items-center gap-2 border border-zinc-200 hover:border-zinc-400 text-zinc-700 text-sm font-semibold px-4 py-2.5 rounded-lg transition disabled:opacity-50"
+            className="inline-flex items-center gap-2 border border-line hover:border-ink text-ink-soft text-sm font-semibold px-4 py-2.5 rounded-lg transition disabled:opacity-50"
           >
             <FaCheckDouble className="text-xs" /> Mark all read
           </button>
@@ -71,10 +71,10 @@ export default function NotificationsPage() {
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       {isLoading ? (
-        <div className="min-h-48 flex items-center justify-center text-zinc-400"><FaSpinner className="animate-spin text-2xl" /></div>
+        <div className="min-h-48 flex items-center justify-center text-faint"><FaSpinner className="animate-spin text-2xl" /></div>
       ) : items.length === 0 ? (
-        <div className="rounded-xl border border-zinc-200 bg-white p-10 text-center text-zinc-500 shadow-sm">
-          <FaBell className="mx-auto text-3xl text-zinc-300 mb-3" />
+        <div className="rounded-xl border-2 border-ink bg-white p-10 text-center text-muted">
+          <FaBell className="mx-auto text-3xl text-faint mb-3" />
           No notifications yet.
         </div>
       ) : (
@@ -87,16 +87,16 @@ export default function NotificationsPage() {
                 to={n.link}
                 onClick={() => !n.is_read && handleMarkRead(n.id)}
                 className={`block bg-white border rounded-xl shadow-sm p-4 transition ${
-                  n.is_read ? "border-zinc-200" : "border-zinc-900"
-                } ${n.link ? "hover:border-zinc-400 cursor-pointer" : ""}`}
+                  n.is_read ? "border-line" : "border-ink"
+                } ${n.link ? "hover:border-ink cursor-pointer" : ""}`}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className={`font-semibold ${n.is_read ? "text-zinc-700" : "text-zinc-950"}`}>{n.title}</p>
-                    <p className="text-sm text-zinc-500 mt-0.5">{n.message}</p>
-                    <p className="text-xs text-zinc-400 mt-1.5">{new Date(n.created_at).toLocaleString()}</p>
+                    <p className={`font-semibold ${n.is_read ? "text-ink-soft" : "text-ink"}`}>{n.title}</p>
+                    <p className="text-sm text-muted mt-0.5">{n.message}</p>
+                    <p className="text-xs text-faint mt-1.5">{new Date(n.created_at).toLocaleString()}</p>
                   </div>
-                  {!n.is_read && <span className="w-2 h-2 rounded-full bg-zinc-900 mt-1.5 shrink-0" />}
+                  {!n.is_read && <span className="w-2 h-2 rounded-full bg-ink mt-1.5 shrink-0" />}
                 </div>
               </Wrapper>
             );

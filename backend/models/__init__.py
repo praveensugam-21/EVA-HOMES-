@@ -10,6 +10,7 @@ from models.user import User
 from models.seller_profile import SellerProfile
 from models.seller_document import SellerDocument
 from models.property import Property, PropertyImage
+from models.property_unlock import PropertyUnlock
 from models.enquiry import Enquiry
 from models.enquiry_note import EnquiryNote
 from models.broker_settings import BrokerSettings

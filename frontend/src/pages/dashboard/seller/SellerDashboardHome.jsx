@@ -7,14 +7,14 @@ import { useAuth } from "../../../context/AuthContext";
 
 function StatCard({ icon: Icon, label, value, to }) {
   return (
-    <Link to={to} className="bg-white border border-zinc-200 rounded-xl p-5 shadow-sm hover:border-zinc-400 transition block">
+    <Link to={to} className="bg-white border-2 border-ink rounded-xl p-5 hover:border-ink transition block">
       <div className="flex items-center gap-3 mb-2">
-        <div className="w-9 h-9 rounded-lg bg-zinc-100 flex items-center justify-center">
-          <Icon className="text-zinc-600 text-sm" />
+        <div className="w-9 h-9 rounded-lg bg-surface flex items-center justify-center">
+          <Icon className="text-ink-soft text-sm" />
         </div>
-        <span className="text-sm font-medium text-zinc-500">{label}</span>
+        <span className="text-sm font-medium text-muted">{label}</span>
       </div>
-      <p className="text-2xl font-bold text-zinc-950">{value}</p>
+      <p className="text-2xl font-bold text-ink">{value}</p>
     </Link>
   );
 }

@@ -22,23 +22,24 @@ export default function WhyUs() {
   return (
     <section className="py-20 max-w-7xl mx-auto px-6">
       <div className="text-center mb-12">
-        <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Why Choose EVA Homes?</h2>
-        <p className="text-zinc-500 text-sm mt-1">We make the home search process simple and reliable.</p>
+        <span className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">Why us</span>
+        <h2 className="font-display text-2xl font-semibold tracking-tight text-ink mt-1.5">Why Choose EVA Homes?</h2>
+        <p className="text-muted text-sm mt-1">We make the home search process simple and reliable.</p>
       </div>
 
       <div className="grid md:grid-cols-3 gap-6">
         {data.map((item, index) => (
           <div
             key={index}
-            className="bg-white border border-zinc-100 rounded-xl p-8 text-center shadow-sm"
+            className="bg-white border-2 border-ink rounded-xl p-8 text-center hover:-translate-y-1 hover:shadow-[0_12px_28px_-14px_rgba(16,17,20,0.35)] transition-all duration-200"
           >
-            <div className="text-zinc-900 text-3xl mb-4 flex justify-center">
+            <div className="w-14 h-14 rounded-xl bg-accent-soft text-accent text-xl mb-5 mx-auto flex items-center justify-center">
               {item.icon}
             </div>
-            <h3 className="font-bold text-zinc-900 text-lg mb-2">
+            <h3 className="font-display font-semibold text-ink text-lg mb-2">
               {item.title}
             </h3>
-            <p className="text-zinc-500 text-sm leading-relaxed">
+            <p className="text-muted text-sm leading-relaxed">
               {item.desc}
             </p>
           </div>

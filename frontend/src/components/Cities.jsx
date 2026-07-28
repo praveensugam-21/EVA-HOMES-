@@ -35,30 +35,28 @@ export default function Cities() {
   };
 
   return (
-    <section className="py-20 bg-zinc-50 border-y border-zinc-100">
+    <section className="py-20 bg-surface border-y border-line-soft">
       <div className="max-w-7xl mx-auto px-6">
         <div className="mb-8 text-center md:text-left">
-          <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Popular Cities</h2>
-          <p className="text-zinc-500 text-sm mt-1">Browse properties in India's top real estate markets.</p>
+          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">Where to look</span>
+          <h2 className="font-display text-2xl font-semibold tracking-tight text-ink mt-1.5">Popular Cities</h2>
+          <p className="text-muted text-sm mt-1">Browse properties in India's top real estate markets.</p>
         </div>
 
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
           {isLoading
             ? Array.from({ length: 6 }).map((_, i) => (
-                <div
-                  key={i}
-                  className="bg-white border border-zinc-200 rounded-xl h-20 animate-pulse"
-                />
+                <div key={i} className="bg-white border-2 border-ink rounded-xl h-20 animate-pulse" />
               ))
             : cities.slice(0, 6).map((item) => (
                 <div
                   key={item.city}
                   onClick={() => handleCityClick(item.city)}
-                  className="bg-white border border-zinc-100 rounded-xl py-5 px-3 text-center hover:border-zinc-900 cursor-pointer transition-all duration-200 shadow-sm"
+                  className="group bg-white border-2 border-ink rounded-xl py-5 px-3 text-center hover:-translate-y-1 hover:shadow-[0_10px_24px_-12px_rgba(16,17,20,0.35)] cursor-pointer transition-all duration-200"
                 >
-                  <p className="font-semibold text-zinc-900 text-sm">{item.city}</p>
+                  <p className="font-semibold text-ink text-sm group-hover:text-accent transition-colors">{item.city}</p>
                   {item.count !== null && (
-                    <p className="text-[10px] text-zinc-400 font-medium uppercase mt-1">
+                    <p className="text-[10px] text-faint font-semibold uppercase mt-1 tracking-wide">
                       {item.count} {item.count === 1 ? "listing" : "listings"}
                     </p>
                   )}

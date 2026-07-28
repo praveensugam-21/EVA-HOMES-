@@ -110,36 +110,36 @@ export default function AdminEnquiriesPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen bg-surface">
       <Navbar />
       <main className="pt-24 pb-16 px-6">
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-400 font-semibold">Admin Workspace</p>
-              <h1 className="text-3xl font-bold tracking-tight text-zinc-950 mt-1">Enquiries</h1>
-              <p className="text-sm text-zinc-500 mt-2">Every new lead appears here for broker follow-up.</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-faint font-semibold">Admin Workspace</p>
+              <h1 className="text-3xl font-bold tracking-tight text-ink mt-1">Enquiries</h1>
+              <p className="text-sm text-muted mt-2">Every new lead appears here for broker follow-up.</p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 w-full lg:w-auto">
-              <div className="rounded-xl bg-white border border-zinc-200 px-4 py-4 shadow-sm min-w-[140px]">
-                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Total</p>
-                <p className="text-2xl font-bold text-zinc-950 mt-2">{dashboard.total}</p>
+              <div className="rounded-xl bg-white border-2 border-ink px-4 py-4 min-w-[140px]">
+                <p className="text-xs font-semibold uppercase tracking-wider text-faint">Total</p>
+                <p className="text-2xl font-bold text-ink mt-2">{dashboard.total}</p>
               </div>
-              <div className="rounded-xl bg-white border border-zinc-200 px-4 py-4 shadow-sm min-w-[140px]">
-                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Unread</p>
+              <div className="rounded-xl bg-white border-2 border-ink px-4 py-4 min-w-[140px]">
+                <p className="text-xs font-semibold uppercase tracking-wider text-faint">Unread</p>
                 <p className="text-2xl font-bold text-amber-600 mt-2">{dashboard.unread_count}</p>
               </div>
-              <div className="rounded-xl bg-white border border-zinc-200 px-4 py-4 shadow-sm min-w-[140px]">
-                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">New</p>
+              <div className="rounded-xl bg-white border-2 border-ink px-4 py-4 min-w-[140px]">
+                <p className="text-xs font-semibold uppercase tracking-wider text-faint">New</p>
                 <p className="text-2xl font-bold text-emerald-600 mt-2">{dashboard.new_count}</p>
               </div>
             </div>
           </div>
 
-          <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-5">
+          <div className="bg-white border-2 border-ink rounded-xl p-5">
             <div className="grid lg:grid-cols-[1fr_180px_auto] gap-4 items-end">
               <label className="block">
-                <span className="flex items-center gap-2 text-xs font-semibold text-zinc-500 mb-1.5">
+                <span className="flex items-center gap-2 text-xs font-semibold text-muted mb-1.5">
                   <FaSearch className="text-[10px]" />
                   Search
                 </span>
@@ -149,12 +149,12 @@ export default function AdminEnquiriesPage() {
                   value={filters.search}
                   onChange={handleFilterChange}
                   placeholder="Buyer name, email, phone, property..."
-                  className="w-full border border-zinc-200 rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+                  className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white"
                 />
               </label>
 
               <label className="block">
-                <span className="flex items-center gap-2 text-xs font-semibold text-zinc-500 mb-1.5">
+                <span className="flex items-center gap-2 text-xs font-semibold text-muted mb-1.5">
                   <FaFilter className="text-[10px]" />
                   Status
                 </span>
@@ -162,7 +162,7 @@ export default function AdminEnquiriesPage() {
                   name="status"
                   value={filters.status}
                   onChange={handleFilterChange}
-                  className="w-full border border-zinc-200 rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+                  className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white"
                 >
                   <option value="">All statuses</option>
                   <option value="new">New</option>
@@ -172,13 +172,13 @@ export default function AdminEnquiriesPage() {
                 </select>
               </label>
 
-              <label className="flex items-center gap-3 rounded-lg border border-zinc-200 px-4 py-3 text-sm font-medium text-zinc-700">
+              <label className="flex items-center gap-3 rounded-lg border border-line px-4 py-3 text-sm font-medium text-ink-soft">
                 <input
                   type="checkbox"
                   name="unreadOnly"
                   checked={filters.unreadOnly}
                   onChange={handleFilterChange}
-                  className="h-4 w-4 accent-zinc-900"
+                  className="h-4 w-4 accent-ink"
                 />
                 Unread only
               </label>
@@ -192,21 +192,21 @@ export default function AdminEnquiriesPage() {
           )}
 
           {isLoading ? (
-            <div className="min-h-72 flex items-center justify-center text-zinc-500">
+            <div className="min-h-72 flex items-center justify-center text-muted">
               <FaSpinner className="animate-spin text-2xl" />
             </div>
           ) : dashboard.items.length === 0 ? (
-            <div className="rounded-xl border border-zinc-200 bg-white p-10 text-center text-zinc-500 shadow-sm">
+            <div className="rounded-xl border-2 border-ink bg-white p-10 text-center text-muted">
               No enquiries match the current filters.
             </div>
           ) : (
             <div className="space-y-4">
               {dashboard.items.map((item) => (
-                <article key={item.id} className="bg-white border border-zinc-200 rounded-xl shadow-sm p-5">
+                <article key={item.id} className="bg-white border-2 border-ink rounded-xl p-5">
                   <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
                     <div className="space-y-3 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="px-2.5 py-1 rounded-full bg-zinc-900 text-white text-[11px] font-semibold uppercase tracking-wider">
+                        <span className="px-2.5 py-1 rounded-full bg-ink text-white text-[11px] font-semibold uppercase tracking-wider">
                           {item.status}
                         </span>
                         {!item.is_read && (
@@ -214,34 +214,34 @@ export default function AdminEnquiriesPage() {
                             Unread
                           </span>
                         )}
-                        <span className="px-2.5 py-1 rounded-full bg-zinc-100 text-zinc-600 text-[11px] font-semibold uppercase tracking-wider">
+                        <span className="px-2.5 py-1 rounded-full bg-surface text-ink-soft text-[11px] font-semibold uppercase tracking-wider">
                           {item.source.replace("_", " ")}
                         </span>
                       </div>
 
                       <div>
-                        <h2 className="text-lg font-bold text-zinc-950">{item.name}</h2>
-                        <p className="text-sm text-zinc-500 mt-1">
+                        <h2 className="text-lg font-bold text-ink">{item.name}</h2>
+                        <p className="text-sm text-muted mt-1">
                           {item.property_title || "General enquiry"}
                           {item.property_city ? ` · ${item.property_locality ? `${item.property_locality}, ` : ""}${item.property_city}` : ""}
                         </p>
                       </div>
 
-                      <div className="grid sm:grid-cols-2 gap-3 text-sm text-zinc-700">
+                      <div className="grid sm:grid-cols-2 gap-3 text-sm text-ink-soft">
                         <p>Email: <span className="font-medium">{item.email}</span></p>
                         <p>Phone: <span className="font-medium">{item.phone || "Not shared"}</span></p>
                         <p>Created: <span className="font-medium">{new Date(item.created_at).toLocaleString()}</span></p>
                         {item.property_id && (
                           <p>
                             Property:{" "}
-                            <Link to={`/properties/${item.property_id}`} className="font-medium text-zinc-900 hover:underline">
+                            <Link to={`/properties/${item.property_id}`} className="font-medium text-ink hover:underline">
                               View listing
                             </Link>
                           </p>
                         )}
                       </div>
 
-                      <div className="rounded-lg border border-zinc-100 bg-zinc-50 px-4 py-3 text-sm text-zinc-700 whitespace-pre-line">
+                      <div className="rounded-lg border border-line-soft bg-surface px-4 py-3 text-sm text-ink-soft whitespace-pre-line">
                         {item.message}
                       </div>
                     </div>
@@ -252,7 +252,7 @@ export default function AdminEnquiriesPage() {
                           type="button"
                           disabled={activeId === item.id}
                           onClick={() => handleEnquiryUpdate(item.id, { status: "contacted" })}
-                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 px-3 py-2.5 text-sm font-semibold text-zinc-700 hover:border-zinc-400 transition disabled:opacity-60"
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-line px-3 py-2.5 text-sm font-semibold text-ink-soft hover:border-ink transition disabled:opacity-60"
                         >
                           <FaPhoneAlt className="text-xs" />
                           Contacted
@@ -261,7 +261,7 @@ export default function AdminEnquiriesPage() {
                           type="button"
                           disabled={activeId === item.id}
                           onClick={() => handleEnquiryUpdate(item.id, { status: "closed" })}
-                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 px-3 py-2.5 text-sm font-semibold text-zinc-700 hover:border-zinc-400 transition disabled:opacity-60"
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-line px-3 py-2.5 text-sm font-semibold text-ink-soft hover:border-ink transition disabled:opacity-60"
                         >
                           <FaCheckCircle className="text-xs" />
                           Closed
@@ -270,14 +270,14 @@ export default function AdminEnquiriesPage() {
                           type="button"
                           disabled={activeId === item.id}
                           onClick={() => handleEnquiryUpdate(item.id, { status: "read", is_read: true })}
-                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 px-3 py-2.5 text-sm font-semibold text-zinc-700 hover:border-zinc-400 transition disabled:opacity-60"
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-line px-3 py-2.5 text-sm font-semibold text-ink-soft hover:border-ink transition disabled:opacity-60"
                         >
                           <FaEnvelopeOpenText className="text-xs" />
                           Mark Read
                         </button>
                         <a
                           href={item.phone ? `tel:${item.phone}` : `mailto:${item.email}`}
-                          className="inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-3 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 transition"
+                          className="inline-flex items-center justify-center gap-2 rounded-lg bg-ink px-3 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover transition"
                         >
                           {item.phone ? <FaPhoneAlt className="text-xs" /> : <FaEnvelopeOpenText className="text-xs" />}
                           Reach Out
@@ -285,8 +285,8 @@ export default function AdminEnquiriesPage() {
                       </div>
 
                       <div>
-                        <span className="block text-xs font-semibold text-zinc-500 mb-1">Reply to buyer</span>
-                        <p className="text-[11px] text-zinc-400 mb-1.5">
+                        <span className="block text-xs font-semibold text-muted mb-1">Reply to buyer</span>
+                        <p className="text-[11px] text-faint mb-1.5">
                           {item.user_id
                             ? "Visible to the buyer on their My Enquiries page, with a notification."
                             : "This enquiry has no linked account — the buyer can't see replies here. Use Reach Out instead."}
@@ -295,9 +295,9 @@ export default function AdminEnquiriesPage() {
                         {item.notes && item.notes.length > 0 && (
                           <div className="space-y-2 mb-2 max-h-40 overflow-y-auto pr-1">
                             {item.notes.map((note) => (
-                              <div key={note.id} className="rounded-lg bg-zinc-50 border border-zinc-100 px-3 py-2">
-                                <p className="text-sm text-zinc-800 whitespace-pre-line">{note.text}</p>
-                                <p className="text-[11px] text-zinc-400 mt-1">
+                              <div key={note.id} className="rounded-lg bg-surface border border-line-soft px-3 py-2">
+                                <p className="text-sm text-ink whitespace-pre-line">{note.text}</p>
+                                <p className="text-[11px] text-faint mt-1">
                                   {new Date(note.created_at).toLocaleString()}
                                 </p>
                               </div>
@@ -315,7 +315,7 @@ export default function AdminEnquiriesPage() {
                           rows={3}
                           value={draftNotes[item.id] || ""}
                           placeholder="Write a reply the buyer will see..."
-                          className="w-full border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400 resize-none bg-white"
+                          className="w-full border border-line rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-ink resize-none bg-white"
                           onChange={(e) =>
                             setDraftNotes((prev) => ({ ...prev, [item.id]: e.target.value }))
                           }
@@ -324,7 +324,7 @@ export default function AdminEnquiriesPage() {
                           type="button"
                           disabled={activeId === item.id || !(draftNotes[item.id] || "").trim()}
                           onClick={() => handleSendNote(item)}
-                          className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-zinc-900 px-3 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800 transition disabled:opacity-60"
+                          className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-ink px-3 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover transition disabled:opacity-60"
                         >
                           {activeId === item.id ? <FaSpinner className="animate-spin text-xs" /> : <FaPaperPlane className="text-xs" />}
                           Send Reply

@@ -20,13 +20,17 @@ from sqlalchemy.orm import Session
 
 from sqlalchemy import func
 
+from core import storage
+from core.config import settings
+from core.storage import is_supabase_enabled
 from database import get_db
 from models.enquiry import Enquiry
 from models.offer import Offer
-from models.property import ListingType, Property, PropertyImage, PropertyStatus, PropertyType
+from models.property import ListingType, ParkingType, Property, PropertyImage, PropertyStatus, PropertyType
+from models.property_unlock import PropertyUnlock, UnlockStatus
 from models.user import User
 from models.visit import Visit
-from routers.auth import get_admin_user, get_current_user, get_seller_user
+from routers.auth import get_admin_user, get_current_user, get_current_user_optional, get_seller_user
 from routers.settings import get_or_create_broker_settings
 from schemas.property import (
     PropertyAdminItem,
@@ -57,6 +61,29 @@ def mask_phone(phone: Optional[str]) -> Optional[str]:
 
 def whatsapp_number(phone: str) -> str:
     return "".join(ch for ch in phone if ch.isdigit())
+
+
+def is_location_unlocked(db: Session, current_user: Optional[User], prop: Property) -> bool:
+    """
+    True if the exact map location + owner's real phone should be shown:
+    the owner themselves, an admin, or a buyer with a verified (paid,
+    manually confirmed) PropertyUnlock for this specific listing.
+    """
+    if not current_user:
+        return False
+    if current_user.is_admin or current_user.id == prop.owner_id:
+        return True
+
+    unlock = (
+        db.query(PropertyUnlock)
+        .filter(
+            PropertyUnlock.user_id == current_user.id,
+            PropertyUnlock.property_id == prop.id,
+            PropertyUnlock.status == UnlockStatus.VERIFIED,
+        )
+        .first()
+    )
+    return unlock is not None
 
 
 # ============================================================
@@ -339,12 +366,17 @@ def get_my_listing_analytics(
     response_model=PropertyContactResponse,
     summary="Get safe broker contact details for a property"
 )
-def get_property_contact(property_id: int, db: Session = Depends(get_db)):
+def get_property_contact(
+    property_id: int,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+):
     """
     Returns public contact details for the property.
 
-    The owner's full phone is intentionally not returned. Visitors contact
-    the broker desk, while the owner phone is shown only in masked form.
+    The owner's full phone is masked by default — visitors contact the
+    broker desk instead. A buyer with a verified PropertyUnlock for this
+    listing (or the owner/an admin) additionally gets the real number.
     """
     prop = db.query(Property).filter(Property.id == property_id).first()
 
@@ -364,10 +396,14 @@ def get_property_contact(property_id: int, db: Session = Depends(get_db)):
         f"?text={quote(message)}"
     )
 
+    unlocked = is_location_unlocked(db, current_user, prop)
+
     return PropertyContactResponse(
         property_id=prop.id,
         owner_name=prop.owner.full_name if prop.owner else None,
         owner_phone_masked=mask_phone(prop.owner.phone if prop.owner else None),
+        location_unlocked=unlocked,
+        owner_phone=(prop.owner.phone if unlocked and prop.owner else None),
         broker_name=broker_settings.broker_name,
         broker_phone=broker_settings.broker_phone,
         whatsapp_link=whatsapp_link,
@@ -379,7 +415,11 @@ def get_property_contact(property_id: int, db: Session = Depends(get_db)):
     response_model=PropertyResponse,
     summary="Get full details of a single property"
 )
-def get_property(property_id: int, db: Session = Depends(get_db)):
+def get_property(
+    property_id: int,
+    db: Session = Depends(get_db),
+    current_user: Optional[User] = Depends(get_current_user_optional),
+):
     """
     Returns full detail of one property by its ID.
     Includes all images and owner name.
@@ -401,6 +441,11 @@ def get_property(property_id: int, db: Session = Depends(get_db)):
     # (it comes from the related User object)
     response = PropertyResponse.model_validate(prop)
     response.owner_name = prop.owner.full_name if prop.owner else None
+
+    unlocked = is_location_unlocked(db, current_user, prop)
+    response.location_unlocked = unlocked
+    if not unlocked:
+        response.google_maps_link = None
 
     return response
 
@@ -465,9 +510,11 @@ def create_property(
         bathroom_image_url=property_data.bathroom_image_url,
         hall_image_url=property_data.hall_image_url,
         kitchen_image_url=property_data.kitchen_image_url,
-        has_parking=property_data.has_parking,
+        parking_type=property_data.parking_type,
         parking_image_url=property_data.parking_image_url,
         google_maps_link=property_data.google_maps_link,
+        latitude=property_data.latitude,
+        longitude=property_data.longitude,
         owner_id=current_user.id,  # ← automatically link to logged-in user
     )
 
@@ -595,9 +642,10 @@ def delete_property(
 
 
 import uuid
-import shutil
 import os
 from fastapi import File, Request, UploadFile
+
+MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB per photo
 
 # ============================================================
 # ENDPOINT 7: Upload Image (PROTECTED — login required)
@@ -614,7 +662,11 @@ async def upload_image(
     current_user: User = Depends(get_seller_user)
 ):
     """
-    Uploads an image file to the server and returns its static URL.
+    Uploads an image and returns its URL. Goes to a Supabase Storage bucket
+    if STORAGE_BACKEND=supabase is configured, otherwise falls back to local
+    disk (dev only — not durable on a real deploy).
+    Capped at MAX_UPLOAD_BYTES — enforced by counting bytes while streaming,
+    not by trusting the client-supplied size/header.
     """
     # Verify file is an image
     if not file.content_type.startswith("image/"):
@@ -623,21 +675,39 @@ async def upload_image(
             detail="Uploaded file must be an image."
         )
 
-    # Create safe unique filename
-    extension = os.path.splitext(file.filename)[1]
-    if not extension:
-        extension = ".jpg"
+    extension = os.path.splitext(file.filename)[1] or ".jpg"
     unique_filename = f"{uuid.uuid4().hex}{extension}"
 
-    # Destination file path
+    # Read the whole file into memory, enforcing the size cap while doing so —
+    # small enough (5MB max) that this is fine, and both storage backends
+    # below need the full bytes anyway (Supabase needs them for the upload
+    # call; local disk needs them for streaming to a file).
+    chunks = []
+    total_bytes = 0
+    while chunk := await file.read(1024 * 1024):
+        total_bytes += len(chunk)
+        if total_bytes > MAX_UPLOAD_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail=f"Image is larger than {MAX_UPLOAD_BYTES // (1024 * 1024)}MB.",
+            )
+        chunks.append(chunk)
+    content = b"".join(chunks)
+
+    if is_supabase_enabled():
+        try:
+            storage.upload_bytes(settings.SUPABASE_BUCKET_IMAGES, unique_filename, content, file.content_type)
+        except storage.StorageError as e:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+        return {"url": storage.public_url(settings.SUPABASE_BUCKET_IMAGES, unique_filename)}
+
+    # Local disk fallback
     upload_dir = os.path.join("static", "uploads")
     os.makedirs(upload_dir, exist_ok=True)
     file_path = os.path.join(upload_dir, unique_filename)
-
     try:
-        # Save file to disk
         with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
+            buffer.write(content)
     except Exception as e:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,

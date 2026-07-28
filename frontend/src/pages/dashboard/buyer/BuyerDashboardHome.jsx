@@ -7,14 +7,14 @@ import { useAuth } from "../../../context/AuthContext";
 
 function StatCard({ icon: Icon, label, value, to }) {
   return (
-    <Link to={to} className="bg-white border border-zinc-200 rounded-xl p-5 shadow-sm hover:border-zinc-400 transition block">
+    <Link to={to} className="bg-white border-2 border-ink rounded-xl p-5 hover:border-ink transition block">
       <div className="flex items-center gap-3 mb-2">
-        <div className="w-9 h-9 rounded-lg bg-zinc-100 flex items-center justify-center">
-          <Icon className="text-zinc-600 text-sm" />
+        <div className="w-9 h-9 rounded-lg bg-surface flex items-center justify-center">
+          <Icon className="text-ink-soft text-sm" />
         </div>
-        <span className="text-sm font-medium text-zinc-500">{label}</span>
+        <span className="text-sm font-medium text-muted">{label}</span>
       </div>
-      <p className="text-2xl font-bold text-zinc-950">{value}</p>
+      <p className="text-2xl font-bold text-ink">{value}</p>
     </Link>
   );
 }
@@ -49,15 +49,15 @@ export default function BuyerDashboardHome() {
   return (
     <DashboardLayout mode="buyer" title={`Welcome, ${user?.full_name?.split(" ")[0] || "there"}`} subtitle="Your buyer dashboard">
       {!user?.has_seller_profile && (
-        <div className="bg-white border border-zinc-200 rounded-xl p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div className="bg-white border-2 border-ink rounded-xl p-6 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div className="flex items-center gap-3">
-            <FaHandshake className="text-zinc-400 text-2xl" />
+            <FaHandshake className="text-faint text-2xl" />
             <div>
-              <p className="font-semibold text-zinc-900">Want to list properties too?</p>
-              <p className="text-sm text-zinc-500">Activate a seller profile on this same account — no new registration needed.</p>
+              <p className="font-semibold text-ink">Want to list properties too?</p>
+              <p className="text-sm text-muted">Activate a seller profile on this same account — no new registration needed.</p>
             </div>
           </div>
-          <Link to="/dashboard/profile" className="bg-zinc-900 hover:bg-zinc-800 text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition whitespace-nowrap">
+          <Link to="/dashboard/profile" className="bg-ink hover:bg-accent-hover text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition whitespace-nowrap">
             Become a Seller
           </Link>
         </div>

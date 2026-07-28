@@ -4,12 +4,12 @@ import { propertiesAPI } from "../api/api";
 
 function SkeletonCard() {
   return (
-    <div className="bg-white rounded-xl overflow-hidden border border-zinc-100 shadow-sm animate-pulse">
-      <div className="h-48 bg-zinc-100" />
+    <div className="bg-white rounded-xl overflow-hidden border-2 border-ink animate-pulse">
+      <div className="h-48 bg-surface" />
       <div className="p-5 space-y-3">
-        <div className="h-4 bg-zinc-100 rounded w-3/4" />
-        <div className="h-3 bg-zinc-100 rounded w-1/2" />
-        <div className="h-5 bg-zinc-100 rounded w-1/3 mt-4" />
+        <div className="h-4 bg-surface rounded w-3/4" />
+        <div className="h-3 bg-surface rounded w-1/2" />
+        <div className="h-5 bg-surface rounded w-1/3 mt-4" />
       </div>
     </div>
   );
@@ -36,14 +36,15 @@ export default function Featured() {
 
   return (
     <section className="py-20 max-w-7xl mx-auto px-6">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-end justify-between mb-8">
         <div>
-          <h2 className="text-2xl font-bold tracking-tight text-zinc-900">Latest Listings</h2>
-          <p className="text-zinc-550 text-sm mt-1">Explore the newest properties added to our directory.</p>
+          <span className="text-xs font-semibold uppercase tracking-[0.12em] text-accent">Fresh on the market</span>
+          <h2 className="font-display text-2xl font-semibold tracking-tight text-ink mt-1.5">Latest Listings</h2>
+          <p className="text-muted text-sm mt-1">Explore the newest properties added to our directory.</p>
         </div>
         <Link
           to="/listings"
-          className="text-sm font-semibold text-zinc-900 hover:text-zinc-700 hover:underline transition"
+          className="text-sm font-semibold text-ink hover:text-accent transition whitespace-nowrap"
         >
           View All &rarr;
         </Link>
@@ -56,20 +57,20 @@ export default function Featured() {
               <Link
                 key={home.id}
                 to={`/properties/${home.id}`}
-                className="bg-white rounded-xl overflow-hidden border border-zinc-100 shadow-sm hover:shadow-md transition duration-200 group flex flex-col"
+                className="bg-white rounded-xl overflow-hidden border-2 border-ink hover:-translate-y-1 hover:shadow-[0_12px_28px_-14px_rgba(16,17,20,0.35)] transition duration-200 group flex flex-col"
               >
-                <div className="relative h-48 overflow-hidden bg-zinc-50">
+                <div className="relative h-48 overflow-hidden bg-surface">
                   <img
                     src={home.thumbnail_url || `https://picsum.photos/600/400?random=${home.id}`}
                     alt={home.title}
-                    className="w-full h-full object-cover group-hover:scale-[1.02] transition-transform duration-200"
+                    className="w-full h-full object-cover group-hover:scale-[1.03] transition-transform duration-300"
                   />
                   <div className="absolute top-3 left-3 flex gap-1.5">
-                    <span className="bg-zinc-900/80 backdrop-blur-md text-white text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded">
+                    <span className="bg-ink/85 backdrop-blur-md text-white text-[10px] font-bold tracking-wider uppercase px-2 py-0.5 rounded">
                       {home.listing_type}
                     </span>
                     {home.is_verified && (
-                      <span className="bg-emerald-600/80 backdrop-blur-md text-white text-[10px] font-bold tracking-wider px-2 py-0.5 rounded">
+                      <span className="bg-emerald-600/85 backdrop-blur-md text-white text-[10px] font-bold tracking-wider px-2 py-0.5 rounded">
                         ✓ VERIFIED
                       </span>
                     )}
@@ -78,23 +79,23 @@ export default function Featured() {
 
                 <div className="p-5 flex-1 flex flex-col justify-between">
                   <div>
-                    <h3 className="font-bold text-zinc-900 text-base leading-snug line-clamp-1 group-hover:text-zinc-700 transition-colors">
+                    <h3 className="font-semibold text-ink text-base leading-snug line-clamp-1 group-hover:text-accent transition-colors">
                       {home.title}
                     </h3>
-                    <p className="text-zinc-400 text-xs mt-1">
+                    <p className="text-faint text-xs mt-1">
                       📍 {home.locality ? `${home.locality}, ` : ""}{home.city}
                     </p>
                     {home.bedrooms && (
-                      <p className="text-zinc-500 text-xs mt-2 font-medium">
+                      <p className="text-muted text-xs mt-2 font-medium">
                         {home.bedrooms} Beds · {home.bathrooms || 0} Baths · {home.area_sqft?.toLocaleString()} sqft
                       </p>
                     )}
                   </div>
-                  <div className="mt-4 pt-4 border-t border-zinc-50 flex items-center justify-between">
-                    <p className="text-zinc-900 font-extrabold text-lg">
+                  <div className="mt-4 pt-4 border-t border-line-soft flex items-center justify-between">
+                    <p className="text-ink font-bold text-lg font-display">
                       {home.price_label || `₹${home.price?.toLocaleString()}`}
                     </p>
-                    <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400 bg-zinc-50 px-2 py-1 rounded">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-muted bg-surface px-2 py-1 rounded">
                       {home.property_type}
                     </span>
                   </div>

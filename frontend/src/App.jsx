@@ -10,6 +10,7 @@ import PropertyDetailPage from "./pages/PropertyDetailPage";
 import CreateListingPage from "./pages/CreateListingPage";
 import AdminBrokerSettingsPage from "./pages/AdminBrokerSettingsPage";
 import AdminEnquiriesPage from "./pages/AdminEnquiriesPage";
+import AdminPaymentVerificationsPage from "./pages/AdminPaymentVerificationsPage";
 import AdminListingsPage from "./pages/AdminListingsPage";
 import AdminUsersPage from "./pages/AdminUsersPage";
 import ProfilePage from "./pages/ProfilePage";
@@ -20,6 +21,7 @@ import SavedPropertiesPage from "./pages/dashboard/buyer/SavedPropertiesPage";
 import MyEnquiriesPage from "./pages/dashboard/buyer/MyEnquiriesPage";
 import MyVisitsPage from "./pages/dashboard/buyer/MyVisitsPage";
 import MyOffersPage from "./pages/dashboard/buyer/MyOffersPage";
+import MyUnlocksPage from "./pages/dashboard/buyer/MyUnlocksPage";
 
 // Seller dashboard
 import SellerDashboardHome from "./pages/dashboard/seller/SellerDashboardHome";
@@ -42,7 +44,6 @@ import Featured from "./components/Featured";
 import Cities from "./components/Cities";
 import WhyUs from "./components/WhyUs";
 import Steps from "./components/Steps";
-import Testimonials from "./components/Testimonials";
 import Footer from "./components/Footer";
 
 function HomePage() {
@@ -54,7 +55,6 @@ function HomePage() {
       <Cities />
       <WhyUs />
       <Steps />
-      <Testimonials />
       <Footer />
     </div>
   );
@@ -91,7 +91,7 @@ function SellerRoute({ children }) {
     return <Navigate to="/login" replace />;
   }
 
-  if (!user?.has_seller_profile && !user?.is_admin) {
+  if (user?.is_admin || !user?.has_seller_profile) {
     return <Navigate to="/profile" replace />;
   }
 
@@ -129,6 +129,7 @@ function App() {
           <Route path="/dashboard/buyer/enquiries" element={<RequireAuth><MyEnquiriesPage /></RequireAuth>} />
           <Route path="/dashboard/buyer/visits" element={<RequireAuth><MyVisitsPage /></RequireAuth>} />
           <Route path="/dashboard/buyer/offers" element={<RequireAuth><MyOffersPage /></RequireAuth>} />
+          <Route path="/dashboard/buyer/unlocks" element={<RequireAuth><MyUnlocksPage /></RequireAuth>} />
 
           {/* Seller dashboard */}
           <Route path="/dashboard/seller" element={<SellerRoute><SellerDashboardHome /></SellerRoute>} />
@@ -150,6 +151,14 @@ function App() {
             element={
               <AdminRoute>
                 <AdminEnquiriesPage />
+              </AdminRoute>
+            }
+          />
+          <Route
+            path="/admin/payment-verifications"
+            element={
+              <AdminRoute>
+                <AdminPaymentVerificationsPage />
               </AdminRoute>
             }
           />

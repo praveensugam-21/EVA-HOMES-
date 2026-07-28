@@ -42,6 +42,12 @@ def submit_enquiry(
     (Enquiry.user_id) so it shows up under their "My Enquiries" dashboard.
     A simple per-client rate limit reduces abuse on the public form.
     """
+    if current_user and current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin accounts manage the marketplace and can't submit enquiries.",
+        )
+
     rate_limiter.check(
         client_identifier(request, "submit-enquiry"),
         limit=5,
@@ -193,17 +199,24 @@ def list_enquiries(
 @router.put(
     "/{enquiry_id}",
     response_model=EnquiryResponse,
-    summary="Update an enquiry (admin only)"
+    summary="Update an enquiry (admin, or the seller who owns the linked property)"
 )
 def update_enquiry(
     enquiry_id: int,
     enquiry_data: EnquiryUpdate,
     db: Session = Depends(get_db),
-    current_admin: User = Depends(get_admin_user),
+    current_user: User = Depends(get_current_user),
 ):
     enquiry = db.query(Enquiry).filter(Enquiry.id == enquiry_id).first()
     if not enquiry:
         raise HTTPException(status_code=404, detail="Enquiry not found.")
+
+    is_owner = enquiry.property is not None and enquiry.property.owner_id == current_user.id
+    if not current_user.is_admin and not is_owner:
+        raise HTTPException(status_code=403, detail="Not authorized to update this enquiry.")
+
+    if enquiry_data.broker_notes is not None and not current_user.is_admin:
+        raise HTTPException(status_code=403, detail="Only the broker desk can edit broker notes.")
 
     if enquiry_data.status is not None:
         enquiry.status = enquiry_data.status

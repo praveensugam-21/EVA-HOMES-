@@ -21,8 +21,10 @@ const initialFilters = {
   is_admin: "",
 };
 
+const PAGE_SIZE = 20;
+
 const SELLER_STATUS_STYLES = {
-  unverified: "bg-zinc-200 text-zinc-700",
+  unverified: "bg-line text-ink-soft",
   pending: "bg-amber-100 text-amber-700",
   verified: "bg-emerald-100 text-emerald-700",
   rejected: "bg-red-100 text-red-700",
@@ -33,6 +35,7 @@ export default function AdminUsersPage() {
   const [filters, setFilters] = useState(initialFilters);
   const [data, setData] = useState({ items: [], total: 0 });
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [activeId, setActiveId] = useState(null);
   const [error, setError] = useState("");
   const [expandedUserId, setExpandedUserId] = useState(null);
@@ -52,6 +55,8 @@ export default function AdminUsersPage() {
           search: filters.search.trim() || undefined,
           active: filters.active === "" ? undefined : filters.active === "true",
           is_admin: filters.is_admin === "" ? undefined : filters.is_admin === "true",
+          limit: PAGE_SIZE,
+          offset: 0,
         });
         setData(response);
       } catch (err) {
@@ -63,6 +68,25 @@ export default function AdminUsersPage() {
 
     loadUsers();
   }, [filters, isLoggedIn, user]);
+
+  const handleLoadMore = async () => {
+    setIsLoadingMore(true);
+    setError("");
+    try {
+      const response = await authAPI.listUsers({
+        search: filters.search.trim() || undefined,
+        active: filters.active === "" ? undefined : filters.active === "true",
+        is_admin: filters.is_admin === "" ? undefined : filters.is_admin === "true",
+        limit: PAGE_SIZE,
+        offset: data.items.length,
+      });
+      setData((prev) => ({ items: [...prev.items, ...response.items], total: response.total }));
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to load more users."));
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
 
   if (!isLoggedIn) {
     return <Navigate to="/login" replace />;
@@ -129,26 +153,28 @@ export default function AdminUsersPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen bg-surface">
       <Navbar />
       <main className="pt-24 pb-16 px-6">
         <div className="max-w-7xl mx-auto space-y-6">
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-400 font-semibold">Admin Workspace</p>
-              <h1 className="text-3xl font-bold tracking-tight text-zinc-950 mt-1">Users</h1>
-              <p className="text-sm text-zinc-500 mt-2">Manage account access, admin privileges, and active status.</p>
+              <p className="text-xs uppercase tracking-[0.18em] text-faint font-semibold">Admin Workspace</p>
+              <h1 className="text-3xl font-bold tracking-tight text-ink mt-1">Users</h1>
+              <p className="text-sm text-muted mt-2">Manage account access, admin privileges, and active status.</p>
             </div>
-            <div className="rounded-xl bg-white border border-zinc-200 px-5 py-4 shadow-sm">
-              <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Total Users</p>
-              <p className="text-2xl font-bold text-zinc-950 mt-2">{data.total}</p>
+            <div className="rounded-xl bg-white border-2 border-ink px-5 py-4">
+              <p className="text-xs font-semibold uppercase tracking-wider text-faint">Showing</p>
+              <p className="text-2xl font-bold text-ink mt-2">
+                {data.items.length} <span className="text-base font-medium text-muted">of {data.total}</span>
+              </p>
             </div>
           </div>
 
-          <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-5">
+          <div className="bg-white border-2 border-ink rounded-xl p-5">
             <div className="grid lg:grid-cols-[1fr_180px_180px] gap-4">
               <label className="block">
-                <span className="flex items-center gap-2 text-xs font-semibold text-zinc-500 mb-1.5">
+                <span className="flex items-center gap-2 text-xs font-semibold text-muted mb-1.5">
                   <FaSearch className="text-[10px]" />
                   Search
                 </span>
@@ -158,17 +184,17 @@ export default function AdminUsersPage() {
                   value={filters.search}
                   onChange={handleFilterChange}
                   placeholder="Name, email, phone..."
-                  className="w-full border border-zinc-200 rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+                  className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white"
                 />
               </label>
 
               <label className="block">
-                <span className="block text-xs font-semibold text-zinc-500 mb-1.5">Active Status</span>
+                <span className="block text-xs font-semibold text-muted mb-1.5">Active Status</span>
                 <select
                   name="active"
                   value={filters.active}
                   onChange={handleFilterChange}
-                  className="w-full border border-zinc-200 rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+                  className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white"
                 >
                   <option value="">All users</option>
                   <option value="true">Active only</option>
@@ -177,12 +203,12 @@ export default function AdminUsersPage() {
               </label>
 
               <label className="block">
-                <span className="block text-xs font-semibold text-zinc-500 mb-1.5">Role</span>
+                <span className="block text-xs font-semibold text-muted mb-1.5">Role</span>
                 <select
                   name="is_admin"
                   value={filters.is_admin}
                   onChange={handleFilterChange}
-                  className="w-full border border-zinc-200 rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+                  className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white"
                 >
                   <option value="">All roles</option>
                   <option value="true">Admins</option>
@@ -199,32 +225,33 @@ export default function AdminUsersPage() {
           )}
 
           {isLoading ? (
-            <div className="min-h-72 flex items-center justify-center text-zinc-500">
+            <div className="min-h-72 flex items-center justify-center text-muted">
               <FaSpinner className="animate-spin text-2xl" />
             </div>
           ) : data.items.length === 0 ? (
-            <div className="rounded-xl border border-zinc-200 bg-white p-10 text-center text-zinc-500 shadow-sm">
+            <div className="rounded-xl border-2 border-ink bg-white p-10 text-center text-muted">
               No users match the current filters.
             </div>
           ) : (
             <div className="space-y-4">
               {data.items.map((item) => (
-                <article key={item.id} className="bg-white border border-zinc-200 rounded-xl shadow-sm p-5">
+                <article key={item.id} className="bg-white border-2 border-ink rounded-xl p-5">
                   <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-5">
                     <div className="space-y-3 min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider ${item.is_active ? "bg-emerald-100 text-emerald-700" : "bg-zinc-200 text-zinc-700"}`}>
+                        <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider ${item.is_active ? "bg-emerald-100 text-emerald-700" : "bg-line text-ink-soft"}`}>
                           {item.is_active ? "Active" : "Inactive"}
                         </span>
-                        {item.is_admin && (
-                          <span className="px-2.5 py-1 rounded-full bg-zinc-900 text-white text-[11px] font-semibold uppercase tracking-wider">
-                            Admin
+                        {item.is_admin ? (
+                          <span className="px-2.5 py-1 rounded-full bg-ink text-white text-[11px] font-semibold uppercase tracking-wider">
+                            Admin — manages the marketplace
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-1 rounded-full bg-surface text-ink-soft text-[11px] font-semibold uppercase tracking-wider">
+                            Buyer
                           </span>
                         )}
-                        <span className="px-2.5 py-1 rounded-full bg-zinc-100 text-zinc-700 text-[11px] font-semibold uppercase tracking-wider">
-                          Buyer
-                        </span>
-                        {item.has_seller_profile && (
+                        {!item.is_admin && item.has_seller_profile && (
                           <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider ${SELLER_STATUS_STYLES[item.seller_profile?.seller_status] || SELLER_STATUS_STYLES.unverified}`}>
                             Seller: {item.seller_profile?.seller_status}
                           </span>
@@ -232,44 +259,67 @@ export default function AdminUsersPage() {
                       </div>
 
                       <div>
-                        <h2 className="text-xl font-bold text-zinc-950">{item.full_name}</h2>
-                        <p className="text-sm text-zinc-500 mt-1">{item.email}</p>
+                        <h2 className="text-xl font-bold text-ink">{item.full_name}</h2>
+                        <p className="text-sm text-muted mt-1">{item.email}</p>
                       </div>
 
-                      <div className="grid md:grid-cols-2 gap-3 text-sm text-zinc-700">
-                        <p>Phone: <span className="font-medium">{item.phone || "Not shared"}</span></p>
-                        <p>Created: <span className="font-medium">{new Date(item.created_at).toLocaleString()}</span></p>
+                      <div className="grid sm:grid-cols-2 gap-x-6 gap-y-2 text-sm text-ink-soft border-t border-line-soft pt-3">
+                        <p>
+                          Phone: <span className="font-medium">{item.phone || "Not shared"}</span>
+                          {item.phone && (
+                            <span className={`ml-1.5 text-[10px] font-semibold uppercase ${item.phone_verified ? "text-emerald-600" : "text-faint"}`}>
+                              {item.phone_verified ? "✓ verified" : "unverified"}
+                            </span>
+                          )}
+                        </p>
+                        <p>
+                          Email verified:{" "}
+                          <span className={`font-semibold ${item.email_verified ? "text-emerald-600" : "text-faint"}`}>
+                            {item.email_verified ? "✓ Yes" : "No"}
+                          </span>
+                        </p>
+                        <p>City: <span className="font-medium">{item.city || "Not shared"}</span></p>
+                        <p>Address: <span className="font-medium">{item.address || "Not shared"}</span></p>
+                        <p className="sm:col-span-2">Bio: <span className="font-medium">{item.bio || "—"}</span></p>
+                        <p>Account ID: <span className="font-medium">#{item.id}</span></p>
+                        <p>Joined: <span className="font-medium">{new Date(item.created_at).toLocaleDateString()}</span></p>
+                        {!item.is_admin && item.has_seller_profile && (
+                          <>
+                            <p>Business name: <span className="font-medium">{item.seller_profile?.business_name || "Not set"}</span></p>
+                            <p>Seller since: <span className="font-medium">{new Date(item.seller_profile?.created_at).toLocaleDateString()}</span></p>
+                          </>
+                        )}
                       </div>
 
-                      {item.has_seller_profile && (
+                      {!item.is_admin && item.has_seller_profile && (
                         <div className="pt-1">
                           <button
                             type="button"
                             onClick={() => handleToggleDocuments(item.id)}
-                            className="inline-flex items-center gap-2 text-xs font-semibold text-zinc-600 hover:text-zinc-900 underline"
+                            className="inline-flex items-center gap-2 text-xs font-semibold text-ink-soft hover:text-ink underline"
                           >
                             <FaFileAlt className="text-[10px]" />
                             {expandedUserId === item.id ? "Hide Documents" : "View Documents"}
                           </button>
 
                           {expandedUserId === item.id && (
-                            <div className="mt-3 border border-zinc-100 rounded-lg p-3 space-y-2">
+                            <div className="mt-3 border border-line-soft rounded-lg p-3 space-y-2">
                               {docsLoading && !docsByUser[item.id] ? (
-                                <FaSpinner className="animate-spin text-zinc-400" />
+                                <FaSpinner className="animate-spin text-faint" />
                               ) : (docsByUser[item.id] || []).length === 0 ? (
-                                <p className="text-xs text-zinc-400">No documents uploaded yet.</p>
+                                <p className="text-xs text-faint">No documents uploaded yet.</p>
                               ) : (
                                 (docsByUser[item.id] || []).map((doc) => (
                                   <div key={doc.id} className="flex items-center justify-between text-xs">
-                                    <span className="text-zinc-700 font-medium">{doc.doc_type}</span>
-                                    <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-zinc-500 hover:text-zinc-900 underline">
+                                    <span className="text-ink-soft font-medium">{doc.doc_type}</span>
+                                    <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-muted hover:text-ink underline">
                                       View file
                                     </a>
                                   </div>
                                 ))
                               )}
 
-                              <div className="flex gap-2 pt-2 border-t border-zinc-100">
+                              <div className="flex gap-2 pt-2 border-t border-line-soft">
                                 <button
                                   type="button"
                                   disabled={activeId === item.id}
@@ -298,7 +348,7 @@ export default function AdminUsersPage() {
                         type="button"
                         disabled={activeId === item.id}
                         onClick={() => handleUserUpdate(item.id, { is_admin: !item.is_admin })}
-                        className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 px-4 py-3 text-sm font-semibold text-zinc-700 hover:border-zinc-400 transition disabled:opacity-60"
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-line px-4 py-3 text-sm font-semibold text-ink-soft hover:border-ink transition disabled:opacity-60"
                       >
                         <FaShieldAlt className="text-xs" />
                         {item.is_admin ? "Remove Admin Access" : "Make Admin"}
@@ -308,7 +358,7 @@ export default function AdminUsersPage() {
                         type="button"
                         disabled={activeId === item.id}
                         onClick={() => handleUserUpdate(item.id, { is_active: !item.is_active })}
-                        className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 px-4 py-3 text-sm font-semibold text-zinc-700 hover:border-zinc-400 transition disabled:opacity-60"
+                        className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-line px-4 py-3 text-sm font-semibold text-ink-soft hover:border-ink transition disabled:opacity-60"
                       >
                         {item.is_active ? <FaUserSlash className="text-xs" /> : <FaUserCheck className="text-xs" />}
                         {item.is_active ? "Deactivate Account" : "Reactivate Account"}
@@ -317,6 +367,20 @@ export default function AdminUsersPage() {
                   </div>
                 </article>
               ))}
+
+              {data.items.length < data.total && (
+                <div className="flex justify-center pt-2">
+                  <button
+                    type="button"
+                    disabled={isLoadingMore}
+                    onClick={handleLoadMore}
+                    className="inline-flex items-center gap-2 rounded-lg border-2 border-ink px-6 py-3 text-sm font-semibold text-ink hover:bg-ink hover:text-white transition disabled:opacity-60"
+                  >
+                    {isLoadingMore ? <FaSpinner className="animate-spin text-xs" /> : null}
+                    {isLoadingMore ? "Loading..." : `Load More (${data.total - data.items.length} remaining)`}
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </div>

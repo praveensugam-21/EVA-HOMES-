@@ -40,21 +40,21 @@ export default function SellerVisitsPage() {
       {error && <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{error}</div>}
 
       {isLoading ? (
-        <div className="min-h-48 flex items-center justify-center text-zinc-400"><FaSpinner className="animate-spin text-2xl" /></div>
+        <div className="min-h-48 flex items-center justify-center text-faint"><FaSpinner className="animate-spin text-2xl" /></div>
       ) : items.length === 0 ? (
-        <div className="rounded-xl border border-zinc-200 bg-white p-10 text-center text-zinc-500 shadow-sm">
-          <FaCalendarCheck className="mx-auto text-3xl text-zinc-300 mb-3" />
+        <div className="rounded-xl border-2 border-ink bg-white p-10 text-center text-muted">
+          <FaCalendarCheck className="mx-auto text-3xl text-faint mb-3" />
           No visit requests yet.
         </div>
       ) : (
         <div className="space-y-3">
           {items.map((visit) => (
-            <article key={visit.id} className="bg-white border border-zinc-200 rounded-xl shadow-sm p-5 flex items-center gap-4">
+            <article key={visit.id} className="bg-white border-2 border-ink rounded-xl p-5 flex items-center gap-4">
               <div className="flex-1 min-w-0">
-                <p className="font-semibold text-zinc-900">{visit.property_title}</p>
-                <p className="text-xs text-zinc-500 mt-1">Requested by {visit.buyer_name}</p>
-                <p className="text-sm text-zinc-600 mt-1">For: {new Date(visit.requested_date).toLocaleString()}</p>
-                {visit.message && <p className="text-sm text-zinc-500 mt-1">{visit.message}</p>}
+                <p className="font-semibold text-ink">{visit.property_title}</p>
+                <p className="text-xs text-muted mt-1">Requested by {visit.buyer_name}</p>
+                <p className="text-sm text-ink-soft mt-1">For: {new Date(visit.requested_date).toLocaleString()}</p>
+                {visit.message && <p className="text-sm text-muted mt-1">{visit.message}</p>}
               </div>
               <div className="flex flex-col items-end gap-2 shrink-0">
                 <StatusBadge status={visit.status} />

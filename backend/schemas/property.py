@@ -15,7 +15,7 @@ from pydantic import BaseModel, model_validator
 
 # Import our Enum types from the model
 # We reuse the same enums for both DB and API validation
-from models.property import ListingType, PropertyStatus, PropertyType
+from models.property import ListingType, ParkingType, PropertyStatus, PropertyType
 
 
 # ---- IMAGE SCHEMAS ----
@@ -53,9 +53,11 @@ class PropertyBase(BaseModel):
     bathroom_image_url: str
     hall_image_url: str
     kitchen_image_url: str
-    has_parking: bool = False
+    parking_type: ParkingType = ParkingType.NONE
     parking_image_url: Optional[str] = None
     google_maps_link: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
 
 # ---- CREATE SCHEMA ----
@@ -66,8 +68,8 @@ class PropertyCreate(PropertyBase):
 
     @model_validator(mode="after")
     def check_parking_image(self):
-        if self.has_parking and not self.parking_image_url:
-            raise ValueError("Parking image is required when parking is enabled.")
+        if self.parking_type != ParkingType.NONE and not self.parking_image_url:
+            raise ValueError("Parking image is required when parking type is open or closed.")
         return self
 
 
@@ -91,9 +93,11 @@ class PropertyUpdate(BaseModel):
     bathroom_image_url: Optional[str] = None
     hall_image_url: Optional[str] = None
     kitchen_image_url: Optional[str] = None
-    has_parking: Optional[bool] = None
+    parking_type: Optional[ParkingType] = None
     parking_image_url: Optional[str] = None
     google_maps_link: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     is_featured: Optional[bool] = None
     is_verified: Optional[bool] = None
 
@@ -108,6 +112,15 @@ class PropertyResponse(PropertyBase):
     owner_id: int
     created_at: datetime
     images: List[PropertyImageResponse] = []
+
+    # Overridden as Optional — the router nulls this out unless the viewer
+    # owns the listing, is an admin, or has a verified PropertyUnlock for it.
+    google_maps_link: Optional[str] = None
+
+    # True if the caller is entitled to see the real google_maps_link above
+    # (and the seller's real phone via GET /{id}/contact). Drives whether
+    # the frontend shows the map or the "pay to unlock" card.
+    location_unlocked: bool = False
 
     # Owner's name — we'll populate this manually in the router
     owner_name: Optional[str] = None
@@ -133,7 +146,7 @@ class PropertyListItem(BaseModel):
     thumbnail_url: Optional[str] = None
     is_featured: bool
     is_verified: bool
-    has_parking: bool
+    parking_type: ParkingType
     created_at: datetime
 
     model_config = {"from_attributes": True}
@@ -157,6 +170,11 @@ class PropertyContactResponse(BaseModel):
     broker_name: str
     broker_phone: str
     whatsapp_link: str
+
+    # Only populated when the caller has a verified PropertyUnlock for this
+    # property (or owns/administers it) — the real, unmasked owner phone.
+    location_unlocked: bool = False
+    owner_phone: Optional[str] = None
 
 
 class PropertyAdminItem(BaseModel):

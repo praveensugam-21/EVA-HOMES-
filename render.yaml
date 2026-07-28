@@ -17,3 +17,17 @@ services:
         value: false
       - key: ALLOWED_ORIGINS
         sync: false
+      - key: DATABASE_URL
+        sync: false        # Supabase Postgres connection string — set in Render dashboard
+      - key: GOOGLE_CLIENT_ID
+        sync: false        # optional — Google Cloud Console OAuth Client ID
+      - key: STORAGE_BACKEND
+        value: supabase
+      - key: SUPABASE_URL
+        sync: false         # Supabase project URL, e.g. https://xxxx.supabase.co
+      - key: SUPABASE_SERVICE_KEY
+        sync: false          # Supabase service_role key (secret — never the anon key)
+      - key: SUPABASE_BUCKET_IMAGES
+        value: property-images
+      - key: SUPABASE_BUCKET_DOCS
+        value: seller-documents

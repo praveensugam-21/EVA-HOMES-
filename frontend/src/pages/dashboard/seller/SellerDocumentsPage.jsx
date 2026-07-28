@@ -57,7 +57,7 @@ export default function SellerDocumentsPage() {
 
   return (
     <DashboardLayout mode="seller" title="Documents" subtitle="Upload documents to support your seller verification">
-      <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-6">
+      <div className="bg-white border-2 border-ink rounded-xl p-6">
         {error && (
           <div className="bg-red-50 border border-red-100 text-red-700 rounded-lg p-3 mb-4 text-xs font-medium">{error}</div>
         )}
@@ -66,7 +66,7 @@ export default function SellerDocumentsPage() {
           <select
             value={docType}
             onChange={(e) => setDocType(e.target.value)}
-            className="border border-zinc-200 rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-zinc-400 bg-white sm:w-56"
+            className="border border-line rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-ink bg-white sm:w-56"
           >
             {DOC_TYPES.map((opt) => (
               <option key={opt.value} value={opt.value}>{opt.label}</option>
@@ -76,12 +76,12 @@ export default function SellerDocumentsPage() {
             type="file"
             accept="image/*,application/pdf"
             onChange={(e) => setDocFile(e.target.files?.[0] || null)}
-            className="flex-1 border border-zinc-200 rounded-lg px-3 py-2 text-sm bg-white file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-zinc-100 file:text-xs file:font-semibold"
+            className="flex-1 border border-line rounded-lg px-3 py-2 text-sm bg-white file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:bg-surface file:text-xs file:font-semibold"
           />
           <button
             type="submit"
             disabled={isUploading}
-            className="inline-flex items-center justify-center gap-2 border border-zinc-900 text-zinc-900 hover:bg-zinc-900 hover:text-white disabled:opacity-60 font-semibold px-4 py-2.5 rounded-lg text-sm transition whitespace-nowrap"
+            className="inline-flex items-center justify-center gap-2 border border-ink text-ink hover:bg-ink hover:text-white disabled:opacity-60 font-semibold px-4 py-2.5 rounded-lg text-sm transition whitespace-nowrap"
           >
             {isUploading ? <FaSpinner className="animate-spin text-xs" /> : <FaFileUpload className="text-xs" />}
             Upload
@@ -89,20 +89,20 @@ export default function SellerDocumentsPage() {
         </form>
 
         {isLoading ? (
-          <div className="flex items-center justify-center py-6 text-zinc-400"><FaSpinner className="animate-spin" /></div>
+          <div className="flex items-center justify-center py-6 text-faint"><FaSpinner className="animate-spin" /></div>
         ) : documents.length === 0 ? (
-          <p className="text-sm text-zinc-400">No documents uploaded yet.</p>
+          <p className="text-sm text-faint">No documents uploaded yet.</p>
         ) : (
           <ul className="space-y-2">
             {documents.map((doc) => (
-              <li key={doc.id} className="flex items-center justify-between border border-zinc-100 rounded-lg px-4 py-2.5 text-sm">
+              <li key={doc.id} className="flex items-center justify-between border border-line-soft rounded-lg px-4 py-2.5 text-sm">
                 <div>
-                  <p className="font-medium text-zinc-800">
+                  <p className="font-medium text-ink">
                     {DOC_TYPES.find((d) => d.value === doc.doc_type)?.label || doc.doc_type}
                   </p>
-                  <p className="text-xs text-zinc-400">{new Date(doc.uploaded_at).toLocaleString()}</p>
+                  <p className="text-xs text-faint">{new Date(doc.uploaded_at).toLocaleString()}</p>
                 </div>
-                <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-zinc-600 hover:text-zinc-900 underline">
+                <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-xs font-semibold text-ink-soft hover:text-ink underline">
                   View
                 </a>
               </li>

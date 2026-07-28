@@ -23,20 +23,23 @@ export default function Hero() {
   };
 
   return (
-    <section className="relative min-h-[85vh] bg-zinc-50 flex items-center justify-center pt-24 pb-16">
-      <div className="absolute inset-0 z-0 opacity-10">
-        <img src={hero} alt="Background" className="w-full h-full object-cover filter grayscale" />
+    <section className="relative min-h-[85vh] bg-white flex items-center justify-center pt-24 pb-16 overflow-hidden">
+      <div className="absolute inset-0 z-0">
+        <img src={hero} alt="" className="w-full h-full object-cover grayscale opacity-[0.06]" />
       </div>
       <div className="relative z-10 w-full max-w-5xl px-6 text-center">
-        <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold tracking-tight text-zinc-900 leading-tight">
-          Find Your Next Home.
+        <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-accent bg-accent-soft px-3 py-1.5 rounded-full mb-6">
+          Verified listings · Broker-assisted deals
+        </span>
+        <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-ink leading-[1.05]">
+          Find your next home.
         </h1>
-        <p className="text-zinc-500 text-lg md:text-xl mt-4 max-w-2xl mx-auto">
+        <p className="text-muted text-lg md:text-xl mt-5 max-w-2xl mx-auto">
           Explore premium verified properties across India's leading cities.
         </p>
 
-        <div className="bg-white rounded-2xl shadow-sm border border-zinc-100 mt-10 p-6 md:p-8 max-w-3xl mx-auto">
-          <div className="flex gap-6 mb-6 border-b border-zinc-100 pb-3 text-sm font-medium">
+        <div className="bg-white rounded-2xl shadow-[0_12px_32px_-16px_rgba(16,17,20,0.25)] border-2 border-ink mt-10 p-6 md:p-8 max-w-3xl mx-auto">
+          <div className="flex gap-6 mb-6 border-b border-line-soft pb-3 text-sm font-medium">
             {tabs.map((tab) => (
               <button
                 key={tab.id}
@@ -44,8 +47,8 @@ export default function Hero() {
                 onClick={() => setActiveTab(tab.id)}
                 className={`pb-2 transition-all ${
                   activeTab === tab.id
-                    ? "text-zinc-950 border-b-2 border-zinc-950 font-semibold"
-                    : "text-zinc-400 hover:text-zinc-650"
+                    ? "text-ink border-b-2 border-accent font-semibold"
+                    : "text-faint hover:text-ink-soft"
                 }`}
               >
                 {tab.label}
@@ -60,21 +63,21 @@ export default function Hero() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by city, locality, or property name..."
-              className="flex-1 border border-zinc-200 rounded-xl px-5 py-4 text-base outline-none focus:border-zinc-400 transition"
+              className="flex-1 border border-line rounded-xl px-5 py-4 text-base outline-none focus:border-accent transition"
             />
             <button
               type="submit"
               id="hero-search-btn"
-              className="bg-zinc-900 hover:bg-zinc-800 px-8 py-4 rounded-xl text-white flex items-center justify-center font-medium transition"
+              className="bg-accent hover:bg-accent-hover px-8 py-4 rounded-xl text-white flex items-center justify-center font-medium transition"
             >
               <FaSearch size={16} className="mr-2" /> Search
             </button>
           </form>
 
-          <div className="flex flex-wrap justify-center gap-6 md:gap-10 mt-6 text-xs text-zinc-450 border-t border-zinc-50 pt-5">
-            <span className="flex items-center gap-1.5 text-zinc-500">🏠 500+ Properties</span>
-            <span className="flex items-center gap-1.5 text-zinc-500">🌆 6+ Cities</span>
-            <span className="flex items-center gap-1.5 text-zinc-500">✓ Verified Listings</span>
+          <div className="flex flex-wrap justify-center gap-6 md:gap-10 mt-6 text-xs text-muted border-t border-line-soft pt-5 font-medium">
+            <span className="flex items-center gap-1.5">🏠 500+ Properties</span>
+            <span className="flex items-center gap-1.5">🌆 6+ Cities</span>
+            <span className="flex items-center gap-1.5">✓ Verified Listings</span>
           </div>
         </div>
       </div>

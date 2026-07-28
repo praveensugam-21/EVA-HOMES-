@@ -44,6 +44,16 @@ class Settings(BaseSettings):
     # Must match the frontend's VITE_GOOGLE_CLIENT_ID — it's the audience checked on every token.
     GOOGLE_CLIENT_ID: str = ""
 
+    # --- File storage ---
+    # "local" (default, dev): files saved to backend/static/, gone on every
+    # Render/Vercel restart. "supabase": uploaded to Supabase Storage buckets
+    # instead — durable, and how production should run.
+    STORAGE_BACKEND: str = "local"
+    SUPABASE_URL: str = ""
+    SUPABASE_SERVICE_KEY: str = ""
+    SUPABASE_BUCKET_IMAGES: str = "property-images"
+    SUPABASE_BUCKET_DOCS: str = "seller-documents"
+
     @field_validator("DEBUG", mode="before")
     @classmethod
     def parse_debug(cls, value):

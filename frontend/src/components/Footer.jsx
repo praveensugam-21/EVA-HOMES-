@@ -1,22 +1,34 @@
 import { Link } from "react-router-dom";
-import { FaHome } from "react-icons/fa";
+import { FaHome, FaEnvelope } from "react-icons/fa";
 
 export default function Footer() {
   return (
-    <footer className="bg-white border-t border-zinc-150 py-12">
-      <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="flex items-center gap-2">
-          <FaHome className="text-zinc-900 text-xl" />
-          <span className="text-base font-bold tracking-tight text-zinc-900">
-            EVA <span className="font-light text-zinc-500">HOMES</span>
+    <footer className="bg-white border-t border-line-soft">
+      <div className="max-w-7xl mx-auto px-6 py-12 flex flex-col md:flex-row items-center justify-between gap-6">
+        <Link to="/" className="flex items-center gap-2">
+          <div className="w-8 h-8 rounded-lg bg-ink flex items-center justify-center">
+            <FaHome className="text-white text-sm" />
+          </div>
+          <span className="font-display text-base font-semibold tracking-tight text-ink">
+            EVA <span className="font-normal text-muted">Homes</span>
           </span>
-        </div>
+        </Link>
 
-        <p className="text-zinc-500 text-xs">
-          Find • Buy • Rent • Sell Properties Across India
+        <p className="text-muted text-xs">
+          Find · Buy · Rent · Sell Properties Across India
         </p>
 
-        <p className="text-zinc-400 text-xs">
+        <a
+          href="mailto:evahomes360@gmail.com"
+          className="flex items-center gap-2 text-xs font-medium text-ink-soft hover:text-accent transition"
+        >
+          <FaEnvelope className="text-[11px]" />
+          evahomes360@gmail.com
+        </a>
+      </div>
+
+      <div className="border-t border-line-soft">
+        <p className="max-w-7xl mx-auto px-6 py-5 text-center text-faint text-[11px]">
           &copy; {new Date().getFullYear()} EVA Homes. All rights reserved.
         </p>
       </div>

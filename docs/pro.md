@@ -1,6 +1,6 @@
 # EVA Homes — Project Overview
 
-A complete walkthrough of what this project is, how it actually works end-to-end, and why it's a strong product foundation. Written after a full read of the codebase at commit `b351f7c`.
+A complete walkthrough of what this project is, how it actually works end-to-end, and why it's a strong product foundation. Originally written after a full read of the codebase at commit `b351f7c`, kept current since through several rounds of hardening and new features (see `CHANGELOG.md` for the play-by-play).
 
 Production-hardening items (secrets, storage, real OTP delivery, etc.) are tracked separately and deliberately deferred — this document is about the product as it stands, not the deploy punch-list.
 
@@ -16,7 +16,7 @@ The distinguishing structural choice: **the admin sits between buyers and seller
 
 ## 2. Is it complete? — short answer
 
-**Yes, as a product.** Every core user journey — register, browse, enquire, schedule a visit, make an offer, save favorites, list a property, get verified as a seller, moderate as an admin — is built, wired frontend-to-backend, and enforces the right permissions. Nothing is a placeholder page or a dead-end button.
+**Yes, as a product.** Every core user journey — register, browse, enquire, schedule a visit, make an offer, save favorites, list a property (with a free GPS map picker and multi-photo rooms), pay to unlock a listing's exact location/phone, get verified as a seller, moderate as an admin — is built, wired frontend-to-backend, and enforces the right permissions. Nothing is a placeholder page or a dead-end button.
 
 **No, as a deployable production service** — but that's a separate, smaller concern (storage durability, real OTP delivery, secret hygiene) that you've already chosen to handle later. Functionally, this is a finished MVP, not a prototype.
 
@@ -34,7 +34,7 @@ FastAPI backend (Python)
 Database (SQLite dev / Postgres-capable)
 ```
 
-- **Backend**: FastAPI, organized as one router per domain (`auth`, `properties`, `enquiries`, `visits`, `offers`, `notifications`, `saved_properties`, `cities`, `settings`). Each router owns its own CRUD + permission checks.
+- **Backend**: FastAPI, organized as one router per domain (`auth`, `properties`, `enquiries`, `visits`, `offers`, `notifications`, `saved_properties`, `cities`, `settings`, `unlocks`). Each router owns its own CRUD + permission checks.
 - **Auth**: Stateless JWT (HS256), bcrypt-hashed passwords. A user's role isn't a single field — it's derived: `is_admin` flag for admins, presence of a linked `SellerProfile` for sellers, everyone else is a buyer by default. A single account can hold both buyer and seller capability at once (you can browse as a buyer *and* list a property as a seller from the same login).
 - **Frontend**: React Router with route guards (`RequireAuth`, `SellerRoute`, `AdminRoute`) gating entire page trees by role, three parallel dashboard shells (buyer / seller / shared) plus a public marketing/browse site.
 - **Database**: SQLAlchemy models with real relationships (a `User` has one `SellerProfile`, many `SavedProperty` rows, etc.), not a denormalized blob. Schema currently created via `create_all()` rather than versioned migrations.
@@ -55,7 +55,8 @@ Database (SQLite dev / Postgres-capable)
 | `Offer` | A buyer's price offer — buyer submits, seller accepts/rejects, buyer can withdraw. |
 | `SavedProperty` | A buyer's shortlist/wishlist entry. |
 | `Notification` | In-app event feed (new enquiry, offer received, visit confirmed, verification approved, etc.). |
-| `BrokerSettings` | One global row — the broker's name/phone/WhatsApp shown to buyers instead of the seller's real number. |
+| `BrokerSettings` | One global row — the broker's name/phone/WhatsApp, plus the location-unlock payment QR/phone/fee. |
+| `PropertyUnlock` | A buyer's claim to have paid to unlock one listing's exact location + owner phone — `pending → verified/rejected`, admin-reviewed. |
 
 ---
 
@@ -70,7 +71,8 @@ Browses the home page and listings, filters by city/type/price, opens a property
 3. On a listing they like, they can: **enquire** (send a message that becomes a tracked lead), **request a visit** (with a preferred time), or **make an offer** (a price).
 4. Tracks all three from their own dashboard (`My Enquiries`, `My Visits`, `My Offers`) — each shows live status as the seller/admin responds.
 5. Gets in-app **notifications** when a visit is confirmed, an offer is accepted/rejected, etc.
-6. Can manage their profile, password, and (nominally) notification preferences from Settings.
+6. Can pay a small one-time fee to **unlock** a specific listing's exact map location and the owner's real phone number — offline UPI payment, admin manually verifies, tracked on `My Unlocks`.
+7. Can manage their profile, password, and (nominally) notification preferences from Settings.
 
 ### Seller
 1. Registers as a buyer first, then submits a **seller profile** (business name + verification documents) from their profile page.
@@ -78,12 +80,15 @@ Browses the home page and listings, filters by city/type/price, opens a property
 3. Once verified: creates listings (each starts `pending` and again needs **admin approval** before it goes live — a second gate, this time per-listing rather than per-account).
 4. Manages their own listings (`My Listings`), sees **analytics** (views, enquiry counts) per listing, and receives/responds to enquiries, visit requests, and offers from their own seller dashboard — mirroring the buyer's dashboard but from the other side of the transaction.
 
-### Admin / broker (the platform operator)
+### Admin / broker (the platform operator — manages, never participates)
 1. Reviews and approves/rejects **seller verification** requests (with document review).
 2. Reviews and approves/rejects/flags **individual listings** before they go public, and can mark any listing `featured` or `verified` (buyer-facing trust signals only admin can set).
-3. Sees **every enquiry** platform-wide, can add internal broker notes and update status — this is the lead-management console.
-4. Manages **user accounts**: activate/deactivate, promote/demote admin (can't demote or deactivate themselves — a sensible guardrail).
-5. Sets the **global broker contact details** shown to every buyer in place of sellers' real numbers.
+3. Sees **every enquiry** platform-wide, replies directly to buyers (the reply reaches their dashboard + a notification) — this is the lead-management console.
+4. Verifies or rejects **location-unlock payment claims** — checks their own UPI app, clicks Verify/Reject, buyer is notified either way. A live badge shows how many are waiting.
+5. Manages **user accounts**: activate/deactivate, promote/demote admin (can't demote or deactivate themselves — a sensible guardrail). Every user's card shows full profile detail, not just a name and email.
+6. Sets the **global broker contact details** and the **location-unlock payment QR/phone/fee** shown to every buyer.
+
+Deliberately, admin cannot enquire, request a visit, make an offer, save a property, or hold a seller profile — enforced server-side (403, not just a hidden button), so the role stays purely operational rather than blurring into "just another user."
 
 This admin layer is what makes the platform a *managed* marketplace rather than an open listings board — nothing reaches a buyer's eyes without passing through moderation, and every buyer-seller contact is brokered rather than direct.
 
@@ -96,6 +101,8 @@ This admin layer is what makes the platform a *managed* marketplace rather than 
 - **Contact masking through a single global broker identity** is the core monetization mechanic: buyers never get a seller's direct line, so every lead must route through the platform/broker. This is the most commercially significant architectural decision in the codebase, more than any single feature.
 - **Enquiries, visits, and offers are three distinct funnels**, not one generic "contact seller" form — each has its own status lifecycle and dashboard surface. This gives sellers (and the admin) a much richer picture of buyer intent (a browse → an enquiry → a visit → an offer is a real intent ladder) than a flat messaging inbox would.
 - **Notifications and OTP verification are structurally ready but not yet connected to a real delivery provider** — the database schema, preference model, and UI are all built as if email/SMS worked, which means wiring in a provider later is a matter of filling in one function, not redesigning anything.
+- **Admin's exclusivity is enforced, not just implied** — it would have been easy to let `is_admin` accounts bypass every buyer/seller check "since they're trusted anyway" (and the code originally did exactly that for listing creation). Closing that off server-side, not just hiding the UI, is what actually makes "admin manages, doesn't participate" true rather than aspirational.
+- **The location-unlock feature is a second, direct monetization lever** on top of broker-mediated lead generation — and it's built entirely on free infrastructure (Leaflet/OpenStreetMap for the map, manual UPI instead of a payment gateway), so there's no vendor cost sitting underneath a feature that's meant to generate revenue.
 
 ---
 
@@ -103,6 +110,7 @@ This admin layer is what makes the platform a *managed* marketplace rather than 
 
 - **A real, working two-sided marketplace**, not a listings-only site — buyers and sellers both have dedicated tooling and visibility into the state of their transactions.
 - **Built-in lead generation for a brokerage business model**: contact masking + enquiry/visit/offer tracking gives the platform operator a durable reason to sit in every transaction, which is a monetizable position (subscription, commission, or featured-listing fees all fit naturally on top of what's already built).
+- **A second, already-working monetization mechanic**: the location/phone paid unlock isn't a future idea, it's live — buyers pay, admin verifies, revenue happens, on zero third-party infrastructure cost (no Maps API billing, no payment gateway fees).
 - **Trust signals are earned, not self-declared**: seller verification and listing approval mean "verified" and "featured" badges actually mean something to a buyer, which is a real differentiator against unmoderated listing boards.
 - **Admin has full operational control** without needing developer involvement day-to-day — user management, moderation, and broker settings are all self-service from the UI.
 - **The codebase is honest about its own gaps** — stubs for OTP/notifications are clearly marked rather than silently broken, which made this entire audit fast and made it clear exactly what "finish the last mile" means when you're ready for it.

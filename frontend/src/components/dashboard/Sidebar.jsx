@@ -7,6 +7,7 @@ import {
   FaFileAlt,
   FaHeart,
   FaHome,
+  FaLock,
   FaMoneyBillWave,
   FaPlus,
   FaSearch,
@@ -24,6 +25,7 @@ const BUYER_LINKS = [
   { label: "My Enquiries", to: "/dashboard/buyer/enquiries", icon: FaClipboardList },
   { label: "My Visits", to: "/dashboard/buyer/visits", icon: FaCalendarCheck },
   { label: "My Offers", to: "/dashboard/buyer/offers", icon: FaMoneyBillWave },
+  { label: "My Unlocks", to: "/dashboard/buyer/unlocks", icon: FaLock },
 ];
 
 const SELLER_LINKS = [
@@ -51,8 +53,8 @@ function NavItem({ to, icon: Icon, label, end }) {
       className={({ isActive }) =>
         `flex items-center gap-3 px-4 py-2.5 rounded-lg text-sm font-medium transition ${
           isActive
-            ? "bg-zinc-900 text-white"
-            : "text-zinc-600 hover:bg-zinc-100 hover:text-zinc-900"
+            ? "bg-ink text-white"
+            : "text-ink-soft hover:bg-surface hover:text-ink"
         }`
       }
     >
@@ -68,13 +70,13 @@ export default function Sidebar({ mode }) {
   const hasSellerProfile = !!user?.has_seller_profile;
 
   return (
-    <aside className="w-64 shrink-0 bg-white border-r border-zinc-200 min-h-[calc(100vh-64px)] px-4 py-6 space-y-6">
-      <div className="grid grid-cols-2 gap-2 bg-zinc-100 rounded-lg p-1">
+    <aside className="w-64 shrink-0 bg-white border-r border-line min-h-[calc(100vh-64px)] px-4 py-6 space-y-6">
+      <div className="grid grid-cols-2 gap-2 bg-surface rounded-lg p-1">
         <button
           type="button"
           onClick={() => navigate("/dashboard/buyer")}
           className={`py-2 rounded-md text-xs font-semibold transition ${
-            mode === "buyer" ? "bg-white shadow-sm text-zinc-950" : "text-zinc-500 hover:text-zinc-800"
+            mode === "buyer" ? "bg-white shadow-sm text-ink" : "text-muted hover:text-ink"
           }`}
         >
           Buyer
@@ -83,7 +85,7 @@ export default function Sidebar({ mode }) {
           type="button"
           onClick={() => navigate(hasSellerProfile ? "/dashboard/seller" : "/dashboard/profile")}
           className={`py-2 rounded-md text-xs font-semibold transition ${
-            mode === "seller" ? "bg-white shadow-sm text-zinc-950" : "text-zinc-500 hover:text-zinc-800"
+            mode === "seller" ? "bg-white shadow-sm text-ink" : "text-muted hover:text-ink"
           }`}
         >
           {hasSellerProfile ? "Seller" : "Become Seller"}
@@ -96,7 +98,7 @@ export default function Sidebar({ mode }) {
         ))}
       </nav>
 
-      <div className="pt-4 border-t border-zinc-200 space-y-1">
+      <div className="pt-4 border-t border-line space-y-1">
         {SHARED_LINKS.map((link) => (
           <NavItem key={link.to} {...link} />
         ))}

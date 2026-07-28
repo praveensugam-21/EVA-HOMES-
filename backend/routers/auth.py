@@ -1,6 +1,5 @@
 import os
 import secrets
-import shutil
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -10,9 +9,11 @@ from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
 from sqlalchemy.orm import Session
 
+from core import storage
 from core.config import settings
 from core.rate_limit import client_identifier, rate_limiter
 from core.security import create_access_token, decode_access_token, hash_password, verify_password
+from core.storage import is_supabase_enabled
 from database import get_db
 from models.user import User
 from models.seller_profile import SellerProfile
@@ -117,12 +118,20 @@ def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
 
 def get_seller_user(current_user: User = Depends(get_current_user)) -> User:
     """
-    Only accounts that have activated a seller profile (or admins) may
-    create/manage listings. Buyer-only accounts cannot — they can activate
-    a seller profile at any time from their own account via
+    Only accounts that have activated a seller profile may create/manage
+    listings. Admins manage the marketplace, not participate in it, so
+    they're deliberately excluded here too — their listing moderation
+    powers (approve/reject/delete any listing) go through get_admin_user
+    or an explicit is_admin check instead, never through this dependency.
+    Buyer-only accounts can activate a seller profile at any time via
     POST /api/auth/me/seller-profile, no separate registration needed.
     """
-    if not current_user.has_seller_profile and not current_user.is_admin:
+    if current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin accounts manage the marketplace and don't list properties themselves.",
+        )
+    if not current_user.has_seller_profile:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="You need a seller profile to list properties. Activate one from your profile page first.",
@@ -525,6 +534,12 @@ def create_my_seller_profile(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    if current_user.is_admin:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Admin accounts manage the marketplace and can't hold a seller profile.",
+        )
+
     if current_user.has_seller_profile:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -580,6 +595,19 @@ def update_my_seller_profile(
     return current_user.seller_profile
 
 
+def resolve_document_url(file_url: str) -> str:
+    """
+    Seller documents are sensitive, so the Supabase bucket they live in is
+    private — file_url stores a bare storage path (not a full URL) in that
+    mode, and this generates a fresh signed link (1hr) on every request
+    instead of a permanent one. Local-disk mode already stores a full URL,
+    which is returned as-is.
+    """
+    if file_url.startswith("http://") or file_url.startswith("https://"):
+        return file_url
+    return storage.signed_url(settings.SUPABASE_BUCKET_DOCS, file_url, expires_in=3600)
+
+
 @router.get(
     "/me/seller-documents",
     response_model=list[SellerDocumentResponse],
@@ -595,12 +623,16 @@ def list_my_seller_documents(
             detail="This account has no seller profile yet.",
         )
 
-    return (
+    documents = (
         db.query(SellerDocument)
         .filter(SellerDocument.seller_profile_id == current_user.seller_profile.id)
         .order_by(SellerDocument.uploaded_at.desc())
         .all()
     )
+    return [
+        SellerDocumentResponse(id=d.id, doc_type=d.doc_type, file_url=resolve_document_url(d.file_url), uploaded_at=d.uploaded_at)
+        for d in documents
+    ]
 
 
 @router.post(
@@ -632,25 +664,48 @@ async def upload_seller_document(
 
     extension = os.path.splitext(file.filename)[1] or ".jpg"
     unique_filename = f"{uuid.uuid4().hex}{extension}"
-    upload_dir = os.path.join("static", "seller_docs")
-    os.makedirs(upload_dir, exist_ok=True)
-    file_path = os.path.join(upload_dir, unique_filename)
 
-    try:
-        with open(file_path, "wb") as buffer:
-            shutil.copyfileobj(file.file, buffer)
-    except Exception as e:
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Could not save file: {str(e)}",
-        )
+    MAX_DOC_BYTES = 5 * 1024 * 1024
+    chunks = []
+    total_bytes = 0
+    while chunk := await file.read(1024 * 1024):
+        total_bytes += len(chunk)
+        if total_bytes > MAX_DOC_BYTES:
+            raise HTTPException(
+                status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+                detail="Document is larger than 5MB.",
+            )
+        chunks.append(chunk)
+    content = b"".join(chunks)
+
+    if is_supabase_enabled():
+        try:
+            storage.upload_bytes(settings.SUPABASE_BUCKET_DOCS, unique_filename, content, file.content_type)
+        except storage.StorageError as e:
+            raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
+        # Private bucket — store the bare path, not a URL; resolve_document_url()
+        # turns this into a signed link on every read instead of a permanent one.
+        stored_file_url = unique_filename
+    else:
+        upload_dir = os.path.join("static", "seller_docs")
+        os.makedirs(upload_dir, exist_ok=True)
+        file_path = os.path.join(upload_dir, unique_filename)
+        try:
+            with open(file_path, "wb") as buffer:
+                buffer.write(content)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Could not save file: {str(e)}",
+            )
+        base_url = str(request.base_url).rstrip("/")
+        stored_file_url = f"{base_url}/static/seller_docs/{unique_filename}"
 
     seller_profile = current_user.seller_profile
-    base_url = str(request.base_url).rstrip("/")
     document = SellerDocument(
         seller_profile_id=seller_profile.id,
         doc_type=doc_type,
-        file_url=f"{base_url}/static/seller_docs/{unique_filename}",
+        file_url=stored_file_url,
     )
     db.add(document)
 
@@ -660,7 +715,12 @@ async def upload_seller_document(
 
     db.commit()
     db.refresh(document)
-    return document
+    return SellerDocumentResponse(
+        id=document.id,
+        doc_type=document.doc_type,
+        file_url=resolve_document_url(document.file_url),
+        uploaded_at=document.uploaded_at,
+    )
 
 
 @router.get(
@@ -672,6 +732,8 @@ def list_users(
     search: Optional[str] = Query(None, min_length=2),
     active: Optional[bool] = Query(None),
     admin_only: Optional[bool] = Query(None, alias="is_admin"),
+    limit: int = Query(20, ge=1, le=100, description="Users per page"),
+    offset: int = Query(0, ge=0, description="Users to skip (for 'Load more')"),
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_admin_user),
 ):
@@ -691,8 +753,9 @@ def list_users(
     if admin_only is not None:
         query = query.filter(User.is_admin == admin_only)
 
-    users = query.order_by(User.created_at.desc()).all()
-    return UserAdminListResponse(items=users, total=len(users))
+    total = query.count()
+    users = query.order_by(User.created_at.desc()).offset(offset).limit(limit).all()
+    return UserAdminListResponse(items=users, total=total)
 
 
 @router.put(
@@ -753,12 +816,16 @@ def list_seller_documents_admin(
             detail="This user has no seller profile.",
         )
 
-    return (
+    documents = (
         db.query(SellerDocument)
         .filter(SellerDocument.seller_profile_id == user.seller_profile.id)
         .order_by(SellerDocument.uploaded_at.desc())
         .all()
     )
+    return [
+        SellerDocumentResponse(id=d.id, doc_type=d.doc_type, file_url=resolve_document_url(d.file_url), uploaded_at=d.uploaded_at)
+        for d in documents
+    ]
 
 
 @router.put(

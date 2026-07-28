@@ -46,26 +46,26 @@ export default function SavedPropertiesPage() {
       )}
 
       {isLoading ? (
-        <div className="min-h-48 flex items-center justify-center text-zinc-400">
+        <div className="min-h-48 flex items-center justify-center text-faint">
           <FaSpinner className="animate-spin text-2xl" />
         </div>
       ) : items.length === 0 ? (
-        <div className="rounded-xl border border-zinc-200 bg-white p-10 text-center text-zinc-500 shadow-sm">
-          <FaHeart className="mx-auto text-3xl text-zinc-300 mb-3" />
+        <div className="rounded-xl border-2 border-ink bg-white p-10 text-center text-muted">
+          <FaHeart className="mx-auto text-3xl text-faint mb-3" />
           No saved properties yet. Browse listings and tap the heart icon to save one.
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 gap-4">
           {items.map((item) => (
-            <div key={item.id} className="bg-white border border-zinc-200 rounded-xl shadow-sm overflow-hidden flex">
+            <div key={item.id} className="bg-white border-2 border-ink rounded-xl overflow-hidden flex">
               <img src={item.property.thumbnail_url} alt={item.property.title} className="w-28 h-28 object-cover shrink-0" />
               <div className="p-4 flex-1 min-w-0 flex flex-col justify-between">
                 <div>
-                  <Link to={`/properties/${item.property.id}`} className="font-semibold text-zinc-900 hover:underline line-clamp-1">
+                  <Link to={`/properties/${item.property.id}`} className="font-semibold text-ink hover:underline line-clamp-1">
                     {item.property.title}
                   </Link>
-                  <p className="text-xs text-zinc-500 mt-1">{item.property.city}{item.property.locality ? `, ${item.property.locality}` : ""}</p>
-                  <p className="text-sm font-bold text-zinc-800 mt-1">{item.property.price_label ? `${item.property.price} ${item.property.price_label}` : item.property.price}</p>
+                  <p className="text-xs text-muted mt-1">{item.property.city}{item.property.locality ? `, ${item.property.locality}` : ""}</p>
+                  <p className="text-sm font-bold text-ink mt-1">{item.property.price_label || `₹${item.property.price.toLocaleString()}`}</p>
                 </div>
                 <button
                   type="button"

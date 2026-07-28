@@ -84,20 +84,20 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-zinc-50 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-surface flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2">
-            <FaHome className="text-zinc-900 text-3xl" />
-            <span className="text-2xl font-bold tracking-tight text-zinc-900">
-              EVA <span className="font-light text-zinc-500">HOMES</span>
+            <FaHome className="text-ink text-3xl" />
+            <span className="text-2xl font-bold tracking-tight text-ink">
+              EVA <span className="font-light text-muted">HOMES</span>
             </span>
           </Link>
-          <p className="text-zinc-500 text-sm mt-2">Sign in to your real estate portal</p>
+          <p className="text-muted text-sm mt-2">Sign in to your real estate portal</p>
         </div>
 
-        <div className="bg-white rounded-xl p-8 border border-zinc-200 shadow-sm">
-          <h2 className="text-xl font-bold text-zinc-900 mb-6">Welcome Back</h2>
+        <div className="bg-white rounded-xl p-8 border-2 border-ink">
+          <h2 className="text-xl font-bold text-ink mb-6">Welcome Back</h2>
 
           {error && (
             <div className="bg-red-50 border border-red-100 text-red-650 rounded-lg p-3.5 mb-5 text-xs font-medium">
@@ -107,11 +107,11 @@ export default function LoginPage() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-zinc-600 text-xs font-semibold mb-1.5">
+              <label className="block text-ink-soft text-xs font-semibold mb-1.5">
                 Email Address
               </label>
               <div className="relative">
-                <FaEnvelope className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs" />
+                <FaEnvelope className="absolute left-3 top-1/2 -translate-y-1/2 text-faint text-xs" />
                 <input
                   type="email"
                   name="email"
@@ -120,17 +120,17 @@ export default function LoginPage() {
                   onChange={handleChange}
                   placeholder="name@domain.com"
                   required
-                  className="w-full border border-zinc-200 rounded-lg pl-9 pr-4 py-2.5 text-zinc-800 placeholder-zinc-400 text-sm focus:outline-none focus:border-zinc-400 transition bg-white"
+                  className="w-full border border-line rounded-lg pl-9 pr-4 py-2.5 text-ink placeholder-faint text-sm focus:outline-none focus:border-ink transition bg-white"
                 />
               </div>
             </div>
 
             <div>
-              <label className="block text-zinc-600 text-xs font-semibold mb-1.5">
+              <label className="block text-ink-soft text-xs font-semibold mb-1.5">
                 Password
               </label>
               <div className="relative">
-                <FaLock className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 text-xs" />
+                <FaLock className="absolute left-3 top-1/2 -translate-y-1/2 text-faint text-xs" />
                 <input
                   type="password"
                   name="password"
@@ -139,7 +139,7 @@ export default function LoginPage() {
                   onChange={handleChange}
                   placeholder="••••••••"
                   required
-                  className="w-full border border-zinc-200 rounded-lg pl-9 pr-4 py-2.5 text-zinc-800 placeholder-zinc-400 text-sm focus:outline-none focus:border-zinc-400 transition bg-white"
+                  className="w-full border border-line rounded-lg pl-9 pr-4 py-2.5 text-ink placeholder-faint text-sm focus:outline-none focus:border-ink transition bg-white"
                 />
               </div>
             </div>
@@ -148,7 +148,7 @@ export default function LoginPage() {
               type="submit"
               id="login-submit"
               disabled={isSubmitting}
-              className="w-full bg-zinc-900 hover:bg-zinc-800 disabled:bg-zinc-700 disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg text-sm transition-all duration-200 flex items-center justify-center gap-2 mt-2"
+              className="w-full bg-ink hover:bg-accent-hover disabled:bg-ink-soft disabled:cursor-not-allowed text-white font-semibold py-3 rounded-lg text-sm transition-all duration-200 flex items-center justify-center gap-2 mt-2"
             >
               {isSubmitting ? (
                 <>
@@ -164,17 +164,17 @@ export default function LoginPage() {
           {GOOGLE_CLIENT_ID && (
             <>
               <div className="flex items-center gap-3 my-5">
-                <div className="h-px bg-zinc-100 flex-1" />
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-zinc-400">or</span>
-                <div className="h-px bg-zinc-100 flex-1" />
+                <div className="h-px bg-surface flex-1" />
+                <span className="text-[11px] font-semibold uppercase tracking-wider text-faint">or</span>
+                <div className="h-px bg-surface flex-1" />
               </div>
               <div ref={googleButtonRef} className="flex justify-center" />
             </>
           )}
 
-          <p className="text-center text-zinc-550 mt-6 text-xs font-medium">
+          <p className="text-center text-muted mt-6 text-xs font-medium">
             Don't have an account?{" "}
-            <Link to="/register" className="text-zinc-900 hover:underline">
+            <Link to="/register" className="text-ink hover:underline">
               Create Account
             </Link>
           </p>

@@ -1,43 +1,52 @@
 @import "tailwindcss";
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-    --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 240 5.9% 10%;
-    --primary-foreground: 0 0% 98%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 240 5.9% 10%;
-    --radius: 0.75rem;
-  }
+@theme {
+  /* Type — Outfit for headings (bold, geometric, distinctive),
+     Plus Jakarta Sans for everything else. Registered as Tailwind
+     utilities: font-display / font-sans. */
+  --font-display: "Outfit", "Plus Jakarta Sans", sans-serif;
+  --font-sans: "Plus Jakarta Sans", -apple-system, sans-serif;
+
+  /* Neutrals — a considered cool-grey scale, not raw Tailwind defaults */
+  --color-ink: #101114;
+  --color-ink-soft: #3a3d44;
+  --color-muted: #676c76;
+  --color-faint: #9a9ea6;
+  --color-line: #e5e7eb;
+  --color-line-soft: #eef0f2;
+  --color-surface: #f7f7f8;
+
+  /* Pure black/white/grey — no color accent. "accent" stays as a name so
+     components don't need per-file edits, it now just resolves to ink
+     tones instead of a hue, keeping the semantic green/amber/red
+     verified/pending/rejected badges as the only color in the app. */
+  --color-accent: #101114;
+  --color-accent-hover: #2a2c31;
+  --color-accent-soft: #eef0f2;
 }
 
 * {
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   padding: 0;
   overflow-x: hidden;
-  font-family: "Poppins", sans-serif;
+  font-family: var(--font-sans);
   background-color: #ffffff;
-  color: #18181b;
+  color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  text-wrap: balance;
 }
 
 #root {
@@ -53,14 +62,69 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f4f4f5;
+  background: var(--color-surface);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #d4d4d8;
+  background: var(--color-line);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a1a1aa;
+  background: var(--color-faint);
+}
+
+/* Steps section — monochrome shimmer/pulse, standing in for "glitter"
+   without introducing color. Each step staggers its own delay so the
+   effect ripples down the sequence instead of firing in sync. */
+@keyframes step-pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(16, 17, 20, 0.28); }
+  70% { box-shadow: 0 0 0 12px rgba(16, 17, 20, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 17, 20, 0); }
+}
+
+@keyframes step-shine {
+  0% { transform: translateX(-160%) rotate(20deg); }
+  100% { transform: translateX(160%) rotate(20deg); }
+}
+
+@keyframes step-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+.step-circle {
+  animation: step-pulse-ring 2.6s ease-out infinite;
+}
+
+.step-shine-mask {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.step-shine-mask::after {
+  content: "";
+  position: absolute;
+  top: -60%;
+  left: -30%;
+  width: 45%;
+  height: 220%;
+  background: linear-gradient(115deg, transparent, rgba(255, 255, 255, 0.95), transparent);
+  animation: step-shine 2.8s ease-in-out infinite;
+}
+
+.step-sparkle {
+  position: absolute;
+  color: var(--color-ink);
+  animation: step-twinkle 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-circle,
+  .step-shine-mask::after,
+  .step-sparkle {
+    animation: none !important;
+  }
 }

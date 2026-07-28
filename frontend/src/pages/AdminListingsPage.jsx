@@ -21,10 +21,10 @@ function DeleteModal({ property, onConfirm, onCancel, isDeleting }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
       <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={onCancel} />
-      <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-zinc-200">
+      <div className="relative bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border-2 border-ink">
         <button
           onClick={onCancel}
-          className="absolute top-4 right-4 text-zinc-400 hover:text-zinc-700 transition"
+          className="absolute top-4 right-4 text-faint hover:text-ink-soft transition"
         >
           <FaTimes />
         </button>
@@ -32,19 +32,19 @@ function DeleteModal({ property, onConfirm, onCancel, isDeleting }) {
           <div className="w-10 h-10 rounded-xl bg-red-100 flex items-center justify-center">
             <FaExclamationTriangle className="text-red-600" />
           </div>
-          <h2 className="text-lg font-bold text-zinc-900">Delete Listing</h2>
+          <h2 className="text-lg font-bold text-ink">Delete Listing</h2>
         </div>
-        <p className="text-sm text-zinc-600 leading-relaxed mb-1">
+        <p className="text-sm text-ink-soft leading-relaxed mb-1">
           Are you sure you want to permanently delete:
         </p>
-        <p className="text-sm font-semibold text-zinc-900 mb-4">"{property?.title}"</p>
+        <p className="text-sm font-semibold text-ink mb-4">"{property?.title}"</p>
         <p className="text-xs text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2 mb-5">
           This action cannot be undone. All images and enquiries linked to this property will also be removed.
         </p>
         <div className="flex gap-3">
           <button
             onClick={onCancel}
-            className="flex-1 border border-zinc-200 hover:border-zinc-400 text-zinc-700 text-sm font-semibold py-2.5 rounded-lg transition"
+            className="flex-1 border border-line hover:border-ink text-ink-soft text-sm font-semibold py-2.5 rounded-lg transition"
           >
             Cancel
           </button>
@@ -66,7 +66,7 @@ const STATUS_STYLES = {
   pending:  "bg-amber-100 text-amber-800 border border-amber-200",
   active:   "bg-emerald-100 text-emerald-800 border border-emerald-200",
   rejected: "bg-red-100 text-red-800 border border-red-200",
-  inactive: "bg-zinc-100 text-zinc-700 border border-zinc-200",
+  inactive: "bg-surface text-ink-soft border border-line",
   sold:     "bg-blue-100 text-blue-800 border border-blue-200",
   rented:   "bg-purple-100 text-purple-800 border border-purple-200",
 };
@@ -158,11 +158,11 @@ export default function AdminListingsPage() {
 
   const statusButtonClass = (active) =>
     `rounded-lg px-3 py-2 text-xs font-semibold transition ${
-      active ? "bg-zinc-900 text-white" : "border border-zinc-200 text-zinc-700 hover:border-zinc-400"
+      active ? "bg-ink text-white" : "border border-line text-ink-soft hover:border-ink"
     }`;
 
   return (
-    <div className="min-h-screen bg-zinc-50">
+    <div className="min-h-screen bg-surface">
       {deleteTarget && (
         <DeleteModal
           property={deleteTarget}
@@ -178,9 +178,9 @@ export default function AdminListingsPage() {
           {/* Header */}
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
             <div>
-              <p className="text-xs uppercase tracking-[0.18em] text-zinc-400 font-semibold">Admin Workspace</p>
-              <h1 className="text-3xl font-bold tracking-tight text-zinc-950 mt-1">Listings Moderation</h1>
-              <p className="text-sm text-zinc-500 mt-2">
+              <p className="text-xs uppercase tracking-[0.18em] text-faint font-semibold">Admin Workspace</p>
+              <h1 className="text-3xl font-bold tracking-tight text-ink mt-1">Listings Moderation</h1>
+              <p className="text-sm text-muted mt-2">
                 Approve, reject, or moderate property listings before they go live.
               </p>
             </div>
@@ -191,32 +191,32 @@ export default function AdminListingsPage() {
                   <p className="text-2xl font-bold text-amber-800 mt-2">{pendingCount}</p>
                 </div>
               )}
-              <div className="rounded-xl bg-white border border-zinc-200 px-5 py-4 shadow-sm">
-                <p className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Total Listings</p>
-                <p className="text-2xl font-bold text-zinc-950 mt-2">{data.total}</p>
+              <div className="rounded-xl bg-white border-2 border-ink px-5 py-4">
+                <p className="text-xs font-semibold uppercase tracking-wider text-faint">Total Listings</p>
+                <p className="text-2xl font-bold text-ink mt-2">{data.total}</p>
               </div>
             </div>
           </div>
 
           {/* Filters */}
-          <div className="bg-white border border-zinc-200 rounded-xl shadow-sm p-5">
+          <div className="bg-white border-2 border-ink rounded-xl p-5">
             <div className="grid lg:grid-cols-[1fr_180px_180px_180px] gap-4">
               <label className="block">
-                <span className="flex items-center gap-2 text-xs font-semibold text-zinc-500 mb-1.5">
+                <span className="flex items-center gap-2 text-xs font-semibold text-muted mb-1.5">
                   <FaSearch className="text-[10px]" />Search
                 </span>
                 <input
                   type="text" name="search" value={filters.search}
                   onChange={handleFilterChange}
                   placeholder="Property title, city, locality..."
-                  className="w-full border border-zinc-200 rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-zinc-400 bg-white"
+                  className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white"
                 />
               </label>
 
               <label className="block">
-                <span className="block text-xs font-semibold text-zinc-500 mb-1.5">Status</span>
+                <span className="block text-xs font-semibold text-muted mb-1.5">Status</span>
                 <select name="status" value={filters.status} onChange={handleFilterChange}
-                  className="w-full border border-zinc-200 rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-zinc-400 bg-white">
+                  className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white">
                   <option value="">All statuses</option>
                   <option value="pending">⏳ Pending</option>
                   <option value="active">✅ Active</option>
@@ -228,9 +228,9 @@ export default function AdminListingsPage() {
               </label>
 
               <label className="block">
-                <span className="block text-xs font-semibold text-zinc-500 mb-1.5">Verified</span>
+                <span className="block text-xs font-semibold text-muted mb-1.5">Verified</span>
                 <select name="verified" value={filters.verified} onChange={handleFilterChange}
-                  className="w-full border border-zinc-200 rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-zinc-400 bg-white">
+                  className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white">
                   <option value="">All</option>
                   <option value="true">Verified</option>
                   <option value="false">Unverified</option>
@@ -238,9 +238,9 @@ export default function AdminListingsPage() {
               </label>
 
               <label className="block">
-                <span className="block text-xs font-semibold text-zinc-500 mb-1.5">Featured</span>
+                <span className="block text-xs font-semibold text-muted mb-1.5">Featured</span>
                 <select name="featured" value={filters.featured} onChange={handleFilterChange}
-                  className="w-full border border-zinc-200 rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-zinc-400 bg-white">
+                  className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white">
                   <option value="">All</option>
                   <option value="true">Featured</option>
                   <option value="false">Not Featured</option>
@@ -254,11 +254,11 @@ export default function AdminListingsPage() {
           )}
 
           {isLoading ? (
-            <div className="min-h-72 flex items-center justify-center text-zinc-500">
+            <div className="min-h-72 flex items-center justify-center text-muted">
               <FaSpinner className="animate-spin text-2xl" />
             </div>
           ) : data.items.length === 0 ? (
-            <div className="rounded-xl border border-zinc-200 bg-white p-10 text-center text-zinc-500 shadow-sm">
+            <div className="rounded-xl border-2 border-ink bg-white p-10 text-center text-muted">
               No properties match the current moderation filters.
             </div>
           ) : (
@@ -269,7 +269,7 @@ export default function AdminListingsPage() {
                   <article
                     key={item.id}
                     className={`bg-white border rounded-xl shadow-sm p-5 transition ${
-                      isPending ? "border-amber-300 ring-1 ring-amber-200" : "border-zinc-200"
+                      isPending ? "border-amber-300 ring-1 ring-amber-200" : "border-line"
                     }`}
                   >
                     {isPending && (
@@ -283,7 +283,7 @@ export default function AdminListingsPage() {
 
                     <div className="flex flex-col xl:flex-row gap-5">
                       {/* Thumbnail */}
-                      <div className="xl:w-52 h-40 rounded-xl overflow-hidden bg-zinc-100 shrink-0">
+                      <div className="xl:w-52 h-40 rounded-xl overflow-hidden bg-surface shrink-0">
                         <img
                           src={item.thumbnail_url || `https://picsum.photos/600/400?random=${item.id}`}
                           alt={item.title}
@@ -294,7 +294,7 @@ export default function AdminListingsPage() {
                       {/* Info */}
                       <div className="flex-1 space-y-3 min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider ${STATUS_STYLES[item.status] || "bg-zinc-100 text-zinc-700"}`}>
+                          <span className={`px-2.5 py-1 rounded-full text-[11px] font-semibold uppercase tracking-wider ${STATUS_STYLES[item.status] || "bg-surface text-ink-soft"}`}>
                             {item.status}
                           </span>
                           {item.is_verified && (
@@ -310,13 +310,13 @@ export default function AdminListingsPage() {
                         </div>
 
                         <div>
-                          <h2 className="text-xl font-bold text-zinc-950">{item.title}</h2>
-                          <p className="text-sm text-zinc-500 mt-1">
+                          <h2 className="text-xl font-bold text-ink">{item.title}</h2>
+                          <p className="text-sm text-muted mt-1">
                             {item.locality ? `${item.locality}, ` : ""}{item.city} · {item.owner_name || "Unknown owner"}
                           </p>
                         </div>
 
-                        <div className="grid md:grid-cols-2 gap-3 text-sm text-zinc-700">
+                        <div className="grid md:grid-cols-2 gap-3 text-sm text-ink-soft">
                           <p>Type: <span className="font-medium capitalize">{item.property_type}</span></p>
                           <p>Listing: <span className="font-medium capitalize">{item.listing_type}</span></p>
                           <p>Price: <span className="font-medium">{item.price_label || item.price.toLocaleString()}</span></p>
@@ -346,7 +346,7 @@ export default function AdminListingsPage() {
                                 {activeId === item.id ? <FaSpinner className="animate-spin" /> : <FaThumbsDown />}
                                 Reject
                               </button>
-                              <div className="w-px bg-zinc-200 self-stretch mx-1" />
+                              <div className="w-px bg-line self-stretch mx-1" />
                             </>
                           )}
 
@@ -377,20 +377,20 @@ export default function AdminListingsPage() {
                       <div className="xl:w-64 space-y-3">
                         <button type="button" disabled={activeId === item.id}
                           onClick={() => handleModerationUpdate(item.id, { is_verified: !item.is_verified })}
-                          className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 px-4 py-3 text-sm font-semibold text-zinc-700 hover:border-zinc-400 transition disabled:opacity-60">
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-line px-4 py-3 text-sm font-semibold text-ink-soft hover:border-ink transition disabled:opacity-60">
                           <FaCheckCircle className="text-xs" />
                           {item.is_verified ? "Remove Verification" : "Mark Verified"}
                         </button>
 
                         <button type="button" disabled={activeId === item.id}
                           onClick={() => handleModerationUpdate(item.id, { is_featured: !item.is_featured })}
-                          className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-200 px-4 py-3 text-sm font-semibold text-zinc-700 hover:border-zinc-400 transition disabled:opacity-60">
+                          className="w-full inline-flex items-center justify-center gap-2 rounded-lg border border-line px-4 py-3 text-sm font-semibold text-ink-soft hover:border-ink transition disabled:opacity-60">
                           <FaStar className="text-xs" />
                           {item.is_featured ? "Remove Featured" : "Make Featured"}
                         </button>
 
                         <Link to={`/properties/${item.id}`}
-                          className="w-full inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-3 text-sm font-semibold text-white hover:bg-zinc-800 transition">
+                          className="w-full inline-flex items-center justify-center rounded-lg bg-ink px-4 py-3 text-sm font-semibold text-white hover:bg-accent-hover transition">
                           View Listing
                         </Link>
 

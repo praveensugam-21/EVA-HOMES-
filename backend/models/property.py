@@ -27,6 +27,11 @@ class PropertyStatus(str, enum.Enum):
     RENTED = "rented"
     INACTIVE = "inactive"
 
+class ParkingType(str, enum.Enum):
+    NONE = "none"
+    OPEN = "open"
+    CLOSED = "closed"
+
 class Property(Base):
     __tablename__ = "properties"
 
@@ -53,12 +58,16 @@ class Property(Base):
     hall_image_url = Column(String(500), nullable=False)
     kitchen_image_url = Column(String(500), nullable=False)
     
-    # Parking details (optional parking, mandatory photo if has_parking is True)
-    has_parking = Column(Boolean, default=False, nullable=False)
+    # Parking details (mandatory photo unless parking_type is NONE)
+    parking_type = Column(Enum(ParkingType), default=ParkingType.NONE, nullable=False)
     parking_image_url = Column(String(500), nullable=True)
     
-    # Location details
+    # Location details — lat/lng are nullable groundwork for future
+    # radius/"near me" search; nothing reads them yet. google_maps_link
+    # stays the source of truth for display until then.
     google_maps_link = Column(String(1000), nullable=False)
+    latitude = Column(Float, nullable=True)
+    longitude = Column(Float, nullable=True)
 
     is_featured = Column(Boolean, default=False)
     is_verified = Column(Boolean, default=False)
@@ -75,6 +84,11 @@ class Property(Base):
     owner = relationship("User", back_populates="properties")
     images = relationship(
         "PropertyImage",
+        back_populates="property",
+        cascade="all, delete-orphan"
+    )
+    unlocks = relationship(
+        "PropertyUnlock",
         back_populates="property",
         cascade="all, delete-orphan"
     )

@@ -6,10 +6,11 @@ The project is split into a React frontend and a FastAPI backend.
 
 ## Tech Stack
 
-- **Frontend:** React 19, Vite, Tailwind CSS, React Router, Axios
+- **Frontend:** React 19, Vite, Tailwind CSS v4, React Router, Axios
 - **Backend:** FastAPI, SQLAlchemy, Pydantic, Alembic (migrations)
 - **Database:** SQLite locally, Postgres-ready for production (`DATABASE_URL`)
 - **Auth:** JWT (email/password) + Google Sign-In (OAuth ID token)
+- **Maps:** Leaflet + OpenStreetMap (GPS pin picker, free, no API key/billing)
 - **Testing:** pytest (backend smoke suite), GitHub Actions CI
 
 ## Project Structure
@@ -25,6 +26,7 @@ eva-homes/
     CHANGELOG.md
     ERROR.md
     pro.md
+    tobedone.md
 
   backend/
     main.py                 FastAPI app setup, CORS, security headers, startup
@@ -42,8 +44,8 @@ eva-homes/
       security.py               Password hashing, JWT
       notify.py                  In-app notification helper
       rate_limit.py               Per-IP in-memory rate limiter
-    models/                    SQLAlchemy tables
-    routers/                   API endpoints, one file per domain
+    models/                    SQLAlchemy tables, incl. property_unlock.py
+    routers/                   API endpoints, one file per domain, incl. unlocks.py
     schemas/                   Pydantic request/response models
     tests/                     pytest smoke suite
     static/
@@ -62,13 +64,14 @@ eva-homes/
       context/                 Auth state (AuthContext)
       layouts/                 Dashboard shell layout
       components/
+        LocationPicker.jsx      Free Leaflet/OpenStreetMap GPS pin picker
         dashboard/              Shared dashboard widgets (Sidebar, StatusBadge)
       pages/
         dashboard/
-          buyer/                 Buyer dashboard pages
+          buyer/                 Buyer dashboard pages, incl. My Unlocks
           seller/                 Seller dashboard pages
           shared/                 Notifications, Settings
-        Admin*.jsx                Admin workspace pages
+        Admin*.jsx                Admin workspace pages, incl. Payment Verifications
         *Page.jsx                 Public pages (Home, Listings, PropertyDetail, Login, Register, ...)
 ```
 
@@ -84,18 +87,20 @@ eva-homes/
 - Save properties to a shortlist
 - Submit enquiries, request visits, make offers — and track all three from a dashboard
 - Receive in-app replies/notifications when a broker responds or a seller acts on a visit/offer
+- Pay a one-time fee (offline UPI, admin-verified) to unlock a listing's exact map location and the owner's real phone number — tracked on a **My Unlocks** page
 
 **Seller** (opt-in on any buyer account)
 - Activate a seller profile and submit verification documents
-- Create and manage listings (each starts `pending` until admin approval)
+- Create and manage listings (each starts `pending` until admin approval), with a free GPS map picker for the exact location and multiple photos per room
 - View per-listing analytics, respond to enquiries/visits/offers
 
-**Admin**
+**Admin** (manages the marketplace — cannot buy, sell, enquire, or hold a seller profile themselves)
 - Approve/reject seller verification
 - Moderate listings (approve, reject, feature, verify)
 - Manage all enquiries site-wide, reply directly to buyers (shows on their dashboard + notification)
-- Manage user accounts (activate/deactivate, promote/demote admin)
-- Edit the site-wide broker contact details (name, phone, WhatsApp)
+- Verify/reject location-unlock payment claims (Navbar shows a live pending-count badge)
+- Manage user accounts (activate/deactivate, promote/demote admin), paginated 20 at a time with full profile detail per user
+- Edit the site-wide broker contact details (name, phone, WhatsApp) and the location-unlock payment QR/phone/fee
 
 See `docs/PROJECT_GUIDE.md` for the full walkthrough of each workspace.
 
@@ -203,7 +208,7 @@ backend/static/uploads/       property images
 backend/static/seller_docs/    seller verification documents
 ```
 
-This works for local development but **does not survive a real cloud deploy** (Render/Vercel disks are ephemeral) — moving to S3/Cloudinary/R2 is a known follow-up, not yet done.
+Uploads are capped at **5MB per file** (enforced server-side by streaming and counting bytes, not just trusted from the client) and **10 photos per room** on a listing. This works for local development but **does not survive a real cloud deploy** (Render/Vercel disks are ephemeral) — moving to S3/Cloudinary/R2 is a known follow-up, not yet done.
 
 ## Notes For Developers
 

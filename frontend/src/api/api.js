@@ -356,6 +356,41 @@ export const propertiesAPI = {
     });
     return response.data; // { url: "http://..." }
   },
+
+  /**
+   * Claim you've paid the (offline UPI) unlock fee for this property.
+   * @param {number} id - Property ID
+   * @param {string} [paymentReference] - Optional UTR/transaction ID
+   */
+  requestUnlock: async (id, paymentReference) => {
+    const response = await api.post(`/api/properties/${id}/unlock-request`, {
+      payment_reference: paymentReference || undefined,
+    });
+    return response.data;
+  },
+};
+
+// ============================================================
+// PROPERTY UNLOCK API FUNCTIONS (location + owner phone paywall)
+// ============================================================
+export const unlocksAPI = {
+  /** List the current user's own unlock requests. */
+  mine: async () => {
+    const response = await api.get("/api/unlocks/mine");
+    return response.data;
+  },
+
+  /** List every unlock request (admin only), optionally filtered by status. */
+  list: async (params = {}) => {
+    const response = await api.get("/api/unlocks", { params });
+    return response.data;
+  },
+
+  /** Verify or reject an unlock request (admin only). */
+  review: async (id, status) => {
+    const response = await api.put(`/api/unlocks/${id}`, { status });
+    return response.data;
+  },
 };
 
 // ============================================================
@@ -517,6 +552,14 @@ export const settingsAPI = {
    */
   updateBrokerContact: async (data) => {
     const response = await api.put("/api/settings/broker-contact", data);
+    return response.data;
+  },
+
+  /**
+   * Get the UPI QR code image / phone / fee for the location-unlock feature.
+   */
+  getPaymentInfo: async () => {
+    const response = await api.get("/api/settings/payment-info");
     return response.data;
   },
 };

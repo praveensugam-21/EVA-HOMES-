@@ -37,6 +37,7 @@ psycopg2-binary==2.9.9
 
 # Google Auth — verifies "Sign in with Google" ID tokens
 google-auth==2.35.0
+requests==2.32.3
 
 # Alembic — versioned database migrations (replaces the old ALTER TABLE shims)
 alembic==1.13.3

@@ -30,7 +30,7 @@ from models.property import ListingType, ParkingType, Property, PropertyImage, P
 from models.property_unlock import PropertyUnlock, UnlockStatus
 from models.user import User
 from models.visit import Visit
-from routers.auth import get_admin_user, get_current_user, get_current_user_optional, get_seller_user
+from routers.auth import get_admin_user, get_current_user, get_current_user_optional, get_seller_or_admin_user, get_seller_user
 from routers.settings import get_or_create_broker_settings
 from schemas.property import (
     PropertyAdminItem,
@@ -492,6 +492,15 @@ def create_property(
     }
     """
 
+    # A phone number is what makes the paid location/phone unlock feature
+    # actually worth paying for — without one, a buyer who unlocks this
+    # listing gets nothing for the "owner's phone number" half of it.
+    if not current_user.phone:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Add a phone number to your profile before listing a property — buyers need a way to reach you.",
+        )
+
     # Create the Property object
     new_property = Property(
         title=property_data.title,
@@ -659,7 +668,7 @@ MAX_UPLOAD_BYTES = 5 * 1024 * 1024  # 5 MB per photo
 async def upload_image(
     request: Request,
     file: UploadFile = File(...),
-    current_user: User = Depends(get_seller_user)
+    current_user: User = Depends(get_seller_or_admin_user)
 ):
     """
     Uploads an image and returns its URL. Goes to a Supabase Storage bucket

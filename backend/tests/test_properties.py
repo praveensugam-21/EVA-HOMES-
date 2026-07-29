@@ -21,6 +21,15 @@ def test_seller_can_create_property_and_it_starts_pending(client):
     assert resp.json()["status"] == "pending"
 
 
+def test_seller_without_phone_cannot_create_property(client):
+    headers = register_and_login(client, "nophone-seller@example.com", phone=None)
+    activate_seller(client, headers)
+
+    resp = client.post("/api/properties", headers=headers, json=VALID_PROPERTY_PAYLOAD)
+    assert resp.status_code == 400
+    assert "phone" in resp.json()["detail"].lower()
+
+
 def test_pending_property_hidden_from_public_listing(client):
     headers = register_and_login(client, "seller2@example.com")
     activate_seller(client, headers)

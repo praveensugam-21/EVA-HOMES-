@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { FaSearch } from "react-icons/fa";
 import { useNavigate } from "react-router-dom";
-import hero from "../assets/hero.png";
+import HeroScene, { SearchGlyph } from "./HeroScene";
 
 export default function Hero() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -24,15 +24,25 @@ export default function Hero() {
 
   return (
     <section className="relative min-h-[85vh] bg-white flex items-center justify-center pt-24 pb-16 overflow-hidden">
-      <div className="absolute inset-0 z-0">
-        <img src={hero} alt="" className="w-full h-full object-cover grayscale opacity-[0.06]" />
+      <div className="hidden lg:block absolute inset-0 z-0 pointer-events-none" aria-hidden="true">
+        <Suspense fallback={null}>
+          <HeroScene />
+        </Suspense>
       </div>
       <div className="relative z-10 w-full max-w-5xl px-6 text-center">
         <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-accent bg-accent-soft px-3 py-1.5 rounded-full mb-6">
           Verified listings · Broker-assisted deals
         </span>
-        <h1 className="font-display text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-ink leading-[1.05]">
+        <h1 className="relative block w-fit mx-auto font-display text-4xl md:text-5xl lg:text-6xl font-semibold tracking-tight text-ink leading-[1.05] lg:whitespace-nowrap">
           Find your next home.
+          <span
+            className="hidden lg:block absolute -top-10 right-0 w-20 h-20 pointer-events-none"
+            aria-hidden="true"
+          >
+            <Suspense fallback={null}>
+              <SearchGlyph />
+            </Suspense>
+          </span>
         </h1>
         <p className="text-muted text-lg md:text-xl mt-5 max-w-2xl mx-auto">
           Explore premium verified properties across India's leading cities.

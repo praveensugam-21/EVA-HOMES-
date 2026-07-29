@@ -46,6 +46,8 @@ export default function PropertyDetailPage() {
   const [paymentReference, setPaymentReference] = useState("");
   const [isSubmittingUnlock, setIsSubmittingUnlock] = useState(false);
   const [unlockError, setUnlockError] = useState("");
+  const [showPaymentQR, setShowPaymentQR] = useState(false);
+  const [showReferenceField, setShowReferenceField] = useState(false);
 
   const refreshPropertyAndContact = async () => {
     const [data, contactData] = await Promise.all([
@@ -92,6 +94,7 @@ export default function PropertyDetailPage() {
     try {
       const created = await propertiesAPI.requestUnlock(id, paymentReference.trim());
       setUnlockRequest(created);
+      setShowPaymentQR(false);
     } catch (err) {
       setUnlockError(getErrorMessage(err, "Failed to submit — please try again."));
     } finally {
@@ -279,6 +282,78 @@ export default function PropertyDetailPage() {
                 {isDeleting ? <><FaSpinner className="animate-spin" /> Deleting...</> : <><FaTrash className="text-xs" /> Delete</>}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Payment / Unlock Modal — big, deliberate, one job: scan, pay, confirm */}
+      {showPaymentQR && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" role="dialog" aria-modal="true">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowPaymentQR(false)} />
+          <div className="relative bg-white rounded-3xl shadow-2xl max-w-2xl w-full p-8 border-2 border-ink max-h-[90vh] overflow-y-auto">
+            <button
+              onClick={() => setShowPaymentQR(false)}
+              className="absolute top-5 right-5 w-9 h-9 rounded-full bg-surface hover:bg-line flex items-center justify-center text-ink-soft transition"
+            >
+              <FaTimes />
+            </button>
+
+            <div className="text-center mb-6">
+              <div className="w-14 h-14 rounded-2xl bg-accent-soft text-accent flex items-center justify-center mx-auto mb-3">
+                <FaLock className="text-2xl" />
+              </div>
+              <h2 className="text-xl font-bold text-ink">Unlock Exact Location &amp; Owner's Number</h2>
+              <p className="text-sm text-muted mt-1">Scan, pay, then confirm — one time only for this listing.</p>
+            </div>
+
+            <div className="text-center mb-6">
+              <span className="font-display text-4xl font-bold text-ink">₹{paymentInfo?.unlock_fee ?? 20}</span>
+            </div>
+
+            {paymentInfo?.payment_qr_image_url && (
+              <div className="flex justify-center mb-5">
+                <img
+                  src={paymentInfo.payment_qr_image_url}
+                  alt="Payment QR code"
+                  className="w-full max-w-md aspect-square object-contain border-2 border-ink rounded-2xl p-3 bg-white"
+                />
+              </div>
+            )}
+
+            {paymentInfo?.payment_phone && (
+              <p className="text-center text-base text-ink-soft mb-6">
+                Pay via UPI to <span className="font-bold text-ink">{paymentInfo.payment_phone}</span>
+              </p>
+            )}
+
+            <form onSubmit={handleUnlockRequest} className="space-y-3">
+              {showReferenceField ? (
+                <input
+                  type="text"
+                  value={paymentReference}
+                  onChange={(e) => setPaymentReference(e.target.value)}
+                  placeholder="Transaction / UTR reference"
+                  className="w-full border border-line rounded-lg px-3.5 py-3 text-sm focus:outline-none focus:border-ink bg-white"
+                />
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setShowReferenceField(true)}
+                  className="text-xs font-semibold text-muted hover:text-ink underline block mx-auto"
+                >
+                  + Add payment reference (optional)
+                </button>
+              )}
+              {unlockError && <p className="text-xs text-red-600 text-center">{unlockError}</p>}
+              <button
+                type="submit"
+                disabled={isSubmittingUnlock}
+                className="w-full flex items-center justify-center gap-2 bg-ink hover:bg-accent-hover text-white text-base font-semibold py-4 rounded-xl transition disabled:opacity-60"
+              >
+                {isSubmittingUnlock ? <FaSpinner className="animate-spin" /> : <FaCheckCircle />}
+                I've Paid
+              </button>
+            </form>
           </div>
         </div>
       )}
@@ -491,7 +566,7 @@ export default function PropertyDetailPage() {
 
                 {unlockRequest?.status === "pending" ? (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-center gap-2">
-                    <FaClock /> Payment submitted — waiting on admin verification.
+                    <FaClock /> Payment submitted — usually reviewed within an hour.
                   </div>
                 ) : unlockRequest?.status === "rejected" ? (
                   <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
@@ -500,51 +575,23 @@ export default function PropertyDetailPage() {
                 ) : null}
 
                 {(!unlockRequest || unlockRequest.status === "rejected") && (
-                  <>
-                    {paymentInfo?.payment_qr_image_url && (
-                      <div className="flex justify-center">
-                        <img
-                          src={paymentInfo.payment_qr_image_url}
-                          alt="Payment QR code"
-                          className="w-40 h-40 object-contain border border-line-soft rounded-lg"
-                        />
-                      </div>
-                    )}
-                    {paymentInfo?.payment_phone && (
-                      <p className="text-center text-sm text-ink-soft">
-                        Pay via UPI to <span className="font-bold text-ink">{paymentInfo.payment_phone}</span>
-                      </p>
-                    )}
-
-                    {user ? (
-                      <form onSubmit={handleUnlockRequest} className="space-y-2.5">
-                        <input
-                          type="text"
-                          value={paymentReference}
-                          onChange={(e) => setPaymentReference(e.target.value)}
-                          placeholder="Transaction / UTR reference (optional, helps verification)"
-                          className="w-full border border-line rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-ink bg-white"
-                        />
-                        {unlockError && <p className="text-xs text-red-600">{unlockError}</p>}
-                        <button
-                          type="submit"
-                          disabled={isSubmittingUnlock}
-                          className="w-full flex items-center justify-center gap-2 bg-ink hover:bg-accent-hover text-white text-sm font-semibold py-3 rounded-lg transition disabled:opacity-60"
-                        >
-                          {isSubmittingUnlock ? <FaSpinner className="animate-spin" /> : <FaQrcode />}
-                          I've Paid — Submit for Verification
-                        </button>
-                      </form>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => navigate("/login")}
-                        className="w-full bg-ink hover:bg-accent-hover text-white text-sm font-semibold py-3 rounded-lg transition"
-                      >
-                        Log in to unlock
-                      </button>
-                    )}
-                  </>
+                  user ? (
+                    <button
+                      type="button"
+                      onClick={() => setShowPaymentQR(true)}
+                      className="w-full flex items-center justify-center gap-2 bg-ink hover:bg-accent-hover text-white text-sm font-semibold py-3 rounded-lg transition"
+                    >
+                      <FaQrcode /> Pay ₹{paymentInfo?.unlock_fee ?? 20}
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => navigate("/login")}
+                      className="w-full bg-ink hover:bg-accent-hover text-white text-sm font-semibold py-3 rounded-lg transition"
+                    >
+                      Log in to unlock
+                    </button>
+                  )
                 )}
               </div>
             )}

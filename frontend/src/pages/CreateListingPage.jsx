@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { FaHome, FaUpload, FaSpinner, FaTimes, FaMapMarkerAlt, FaClock, FaCheckCircle, FaBath, FaCouch, FaUtensils, FaCar, FaImage, FaCamera } from "react-icons/fa";
+import { FaHome, FaUpload, FaSpinner, FaTimes, FaMapMarkerAlt, FaClock, FaCheckCircle, FaBath, FaCouch, FaUtensils, FaCar, FaImage, FaCamera, FaPhoneAlt } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
 import { propertiesAPI, getErrorMessage } from "../api/api";
 import Navbar from "../components/Navbar";
@@ -8,7 +8,7 @@ import Footer from "../components/Footer";
 import LocationPicker from "../components/LocationPicker";
 
 export default function CreateListingPage() {
-  const { isLoggedIn } = useAuth();
+  const { isLoggedIn, user } = useAuth();
   const navigate = useNavigate();
 
   const [formData, setFormData] = useState({
@@ -374,6 +374,24 @@ export default function CreateListingPage() {
           className="mt-5 bg-ink text-white text-xs font-semibold px-6 py-2.5 rounded-lg hover:bg-accent-hover transition"
         >
           Sign In Now
+        </button>
+      </div>
+    );
+  }
+
+  if (!user?.phone) {
+    return (
+      <div className="min-h-screen bg-surface flex flex-col items-center justify-center p-6 text-center">
+        <FaPhoneAlt className="text-faint text-5xl mb-4" />
+        <h2 className="text-xl font-bold text-ink">Add a phone number first</h2>
+        <p className="text-muted text-xs mt-1 max-w-xs">
+          Buyers need a way to reach you — add a phone number to your profile before listing a property.
+        </p>
+        <button
+          onClick={() => navigate("/dashboard/profile")}
+          className="mt-5 bg-ink text-white text-xs font-semibold px-6 py-2.5 rounded-lg hover:bg-accent-hover transition"
+        >
+          Go to Profile
         </button>
       </div>
     );

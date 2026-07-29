@@ -4,6 +4,17 @@ A running, plain-English summary of what changed and why — kept up to date aft
 
 ---
 
+## 2026-07-29 — Phone number now required to list a property
+
+Found during a project re-analysis: `User.phone` was optional everywhere, and nothing stopped a seller from creating a listing without ever setting one. That's a real problem given the paid location/phone-unlock feature — a buyer paying ₹20 specifically for the owner's real phone number would get `null` if the seller never provided one.
+
+- **Backend**: `POST /api/properties` now rejects (400) if `current_user.phone` is empty, with a clear message. Deliberately scoped to listing *creation* only — not added to `get_seller_user` broadly, so it doesn't lock sellers out of viewing their existing listings/analytics if they signed up before this rule existed.
+- **Frontend**: `CreateListingPage` now checks this upfront (before the seller even starts filling out the form) and shows a "Add a phone number first" screen with a direct link to their profile, instead of letting them fill out the whole form and hit a error at the very end.
+- **Tests**: `register_and_login`'s test helper now defaults to a real phone number (previously `None`), since listing creation needs one — fixed 9 tests that broke because of this new rule, and added a new one (`test_seller_without_phone_cannot_create_property`) that explicitly covers the blocked case. 16/16 passing.
+- Verified live: a seller with a phone (seed data) still creates listings normally; a fresh seller without one gets a clean 400.
+
+---
+
 ## 2026-07-28 (final) — Full documentation sync
 
 Brought every doc up to date with everything built this session (location-unlock feature, GPS map picker, multi-photo uploads, admin exclusivity, parking type, upload/rate limits, pending-count badge):

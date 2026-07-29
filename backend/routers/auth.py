@@ -139,6 +139,21 @@ def get_seller_user(current_user: User = Depends(get_current_user)) -> User:
     return current_user
 
 
+def get_seller_or_admin_user(current_user: User = Depends(get_current_user)) -> User:
+    """
+    For endpoints that are genuinely shared between sellers and admins —
+    right now just image upload, since sellers use it for property photos
+    and admin uses the exact same endpoint for the location-unlock QR code.
+    Plain buyer accounts (no seller profile, not admin) are still blocked.
+    """
+    if current_user.is_admin or current_user.has_seller_profile:
+        return current_user
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN,
+        detail="You need a seller profile to upload images. Activate one from your profile page first.",
+    )
+
+
 router = APIRouter(prefix="/api/auth", tags=["Authentication"])
 
 

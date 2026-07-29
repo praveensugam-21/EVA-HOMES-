@@ -72,7 +72,10 @@ def db_session():
         session.close()
 
 
-def register_and_login(client, email, password="Testpass1", full_name="Test User", phone=None):
+def register_and_login(client, email, password="Testpass1", full_name="Test User", phone="9000000000"):
+    # Defaults to a real phone number, not None — property creation requires
+    # one (buyers need a way to reach the seller), so any test that creates
+    # a listing needs this unless it's specifically testing the no-phone case.
     payload = {"full_name": full_name, "email": email, "password": password}
     if phone:
         payload["phone"] = phone

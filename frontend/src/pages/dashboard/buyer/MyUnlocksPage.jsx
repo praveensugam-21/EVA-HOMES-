@@ -53,6 +53,11 @@ export default function MyUnlocksPage() {
                   Requested {new Date(item.requested_at).toLocaleString()}
                   {item.reviewed_at && ` · Reviewed ${new Date(item.reviewed_at).toLocaleString()}`}
                 </p>
+                {item.status === "pending" && (
+                  <p className="text-xs text-amber-700 mt-1">
+                    Usually reviewed within an hour.
+                  </p>
+                )}
                 {item.status === "verified" && (
                   <p className="text-xs text-emerald-700 font-medium mt-1">
                     Unlocked — exact location and owner's number are visible on this listing.

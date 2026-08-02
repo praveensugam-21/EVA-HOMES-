@@ -5,7 +5,6 @@ import { useAuth } from "./context/AuthContext";
 // Pages
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
-import GoogleCallbackPage from "./pages/GoogleCallbackPage";
 import ListingsPage from "./pages/ListingsPage";
 import PropertyDetailPage from "./pages/PropertyDetailPage";
 import CreateListingPage from "./pages/CreateListingPage";
@@ -189,7 +188,6 @@ function App() {
           />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/register" element={<RegisterPage />} />
-          <Route path="/auth/google/callback" element={<GoogleCallbackPage />} />
           <Route
             path="*"
             element={

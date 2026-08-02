@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { FaHome, FaUser, FaEnvelope, FaLock, FaPhone, FaSpinner } from "react-icons/fa";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getErrorMessage } from "../api/api";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export default function RegisterPage() {
   const [formData, setFormData] = useState({
@@ -17,20 +16,12 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { register } = useAuth();
+  const { register, googleLogin } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const googleButtonRef = useRef(null);
 
-  useEffect(() => {
-    if (searchParams.get("google_error")) {
-      setError("Google sign-in failed. Please try again.");
-    }
-  }, [searchParams]);
-
-  // Same Google Identity Services wiring as LoginPage — redirect mode, not
-  // popup, so a browser/extension popup blocker can't silently break this
-  // for visitors. See LoginPage.jsx for the full explanation.
+  // Same Google Identity Services wiring as LoginPage — a new account signing
+  // up with Google goes straight through (the backend creates it on the fly).
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return;
     let cancelled = false;
@@ -44,8 +35,18 @@ export default function RegisterPage() {
 
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
-        ux_mode: "redirect",
-        login_uri: `${BACKEND_URL}/api/auth/google/callback`,
+        callback: async (response) => {
+          setError("");
+          setIsSubmitting(true);
+          try {
+            await googleLogin(response.credential);
+            navigate("/");
+          } catch (err) {
+            setError(getErrorMessage(err, "Google sign-in failed. Please try again."));
+          } finally {
+            setIsSubmitting(false);
+          }
+        },
       });
 
       if (googleButtonRef.current) {
@@ -62,7 +63,7 @@ export default function RegisterPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [googleLogin, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

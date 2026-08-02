@@ -1,41 +1,23 @@
 import { useEffect, useRef, useState } from "react";
 import { FaHome, FaEnvelope, FaLock, FaSpinner } from "react-icons/fa";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { getErrorMessage } from "../api/api";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-const BACKEND_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 export default function LoginPage() {
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const { login } = useAuth();
+  const { login, googleLogin } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
   const googleButtonRef = useRef(null);
-
-  // If the Google redirect flow (see GoogleCallbackPage) sent us back here
-  // after a failure, surface it instead of failing silently.
-  useEffect(() => {
-    if (searchParams.get("google_error")) {
-      setError("Google sign-in failed. Please try again.");
-    }
-  }, [searchParams]);
 
   // Wait for the Google Identity Services script (loaded in index.html) to be
   // ready, then render its button into our div. Polls briefly since the
   // script tag is async and may not have executed yet on first render.
-  //
-  // ux_mode: "redirect" is deliberate — the default popup mode opens
-  // accounts.google.com in a new window via window.open(), which browser
-  // pop-up blockers and privacy extensions frequently block outright (seen
-  // in production as "[GSI_LOGGER]: Failed to open popup window"). Redirect
-  // mode is a full-page navigation instead, so there's no popup to block.
-  // Google POSTs the result to login_uri (backend), which forwards here at
-  // /auth/google/callback with a token in the URL fragment.
   useEffect(() => {
     if (!GOOGLE_CLIENT_ID) return;
     let cancelled = false;
@@ -49,8 +31,18 @@ export default function LoginPage() {
 
       window.google.accounts.id.initialize({
         client_id: GOOGLE_CLIENT_ID,
-        ux_mode: "redirect",
-        login_uri: `${BACKEND_URL}/api/auth/google/callback`,
+        callback: async (response) => {
+          setError("");
+          setIsSubmitting(true);
+          try {
+            await googleLogin(response.credential);
+            navigate("/");
+          } catch (err) {
+            setError(getErrorMessage(err, "Google sign-in failed. Please try again."));
+          } finally {
+            setIsSubmitting(false);
+          }
+        },
       });
 
       if (googleButtonRef.current) {
@@ -67,7 +59,7 @@ export default function LoginPage() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [googleLogin, navigate]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;

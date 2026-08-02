@@ -17,8 +17,6 @@ services:
         value: false
       - key: ALLOWED_ORIGINS
         sync: false
-      - key: FRONTEND_URL
-        sync: false        # deployed frontend URL, e.g. https://eva-homes-two.vercel.app — no trailing slash
       - key: DATABASE_URL
         sync: false        # Supabase Postgres connection string — set in Render dashboard
       - key: GOOGLE_CLIENT_ID

@@ -44,11 +44,6 @@ class Settings(BaseSettings):
     # Must match the frontend's VITE_GOOGLE_CLIENT_ID — it's the audience checked on every token.
     GOOGLE_CLIENT_ID: str = ""
 
-    # Where the deployed frontend lives — used to build the redirect target
-    # after Google's login_uri callback (see routers/auth.py google_login_redirect).
-    # No trailing slash.
-    FRONTEND_URL: str = "http://localhost:5173"
-
     # --- File storage ---
     # "local" (default, dev): files saved to backend/static/, gone on every
     # Render/Vercel restart. "supabase": uploaded to Supabase Storage buckets

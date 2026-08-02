@@ -3,8 +3,7 @@ import secrets
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Optional
-from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
-from fastapi.responses import RedirectResponse
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
@@ -291,7 +290,7 @@ def _get_or_create_google_user(db: Session, credential: str) -> User:
 @router.post(
     "/google",
     response_model=Token,
-    summary="Sign in (or sign up) with a Google account (popup flow)"
+    summary="Sign in (or sign up) with a Google account"
 )
 def google_login(
     request: Request,
@@ -299,11 +298,8 @@ def google_login(
     db: Session = Depends(get_db),
 ):
     """
-    Takes the ID token Google's Sign-In popup hands back to the frontend
-    directly (no page navigation). Kept for callers that already have an ID
-    token in hand (e.g. a future native mobile client) — the web frontend
-    itself uses the redirect flow below, since browser popup blockers make
-    this path unreliable for a lot of visitors.
+    Takes the ID token Google's Sign-In button hands back to the frontend,
+    then either logs the matching account in or creates a new one.
     """
     rate_limiter.check(
         client_identifier(request, "auth-google"),
@@ -313,55 +309,6 @@ def google_login(
     user = _get_or_create_google_user(db, payload.credential)
     access_token = create_access_token(data={"sub": user.email})
     return Token(access_token=access_token, token_type="bearer")
-
-
-@router.post(
-    "/google/callback",
-    include_in_schema=False,
-    summary="Google's redirect target after sign-in (full-page POST, not called by the frontend directly)"
-)
-def google_login_redirect(
-    request: Request,
-    credential: str = Form(...),
-    db: Session = Depends(get_db),
-):
-    """
-    Registered as the GIS `login_uri` for ux_mode: 'redirect'. Google POSTs
-    here as a full-page navigation (not fetch/XHR) after the user picks an
-    account — this never opens a popup, so it can't be blocked by a popup
-    blocker or a privacy extension the way the JS popup flow can.
-
-    Google's documented double-submit CSRF cookie check doesn't apply here:
-    it assumes login_uri shares an origin with the page that rendered the
-    button, so the g_csrf_token cookie (set by GIS's client-side JS on that
-    page's origin) rides along automatically. This app's frontend and
-    backend are on different domains (Vercel/Render), so that cookie can
-    never reach this endpoint — the real security boundary is the ID token
-    verification below, which cryptographically proves Google issued this
-    credential for GOOGLE_CLIENT_ID and a specific real account.
-    """
-    rate_limiter.check(
-        client_identifier(request, "auth-google-redirect"),
-        limit=10,
-        window_seconds=300,
-    )
-
-    try:
-        user = _get_or_create_google_user(db, credential)
-    except HTTPException:
-        return RedirectResponse(
-            f"{settings.FRONTEND_URL}/login?google_error=1",
-            status_code=status.HTTP_303_SEE_OTHER,
-        )
-
-    access_token = create_access_token(data={"sub": user.email})
-    # Token travels in the URL fragment (#), not a query string — fragments
-    # are never sent to the server on the next request or logged anywhere,
-    # unlike query params. The frontend callback page reads it client-side.
-    return RedirectResponse(
-        f"{settings.FRONTEND_URL}/auth/google/callback#token={access_token}",
-        status_code=status.HTTP_303_SEE_OTHER,
-    )
 
 
 @router.get(

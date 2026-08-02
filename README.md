@@ -124,6 +124,7 @@ APP_NAME=EVA Homes API
 APP_VERSION=1.0.0
 DEBUG=True
 GOOGLE_CLIENT_ID=<optional — from Google Cloud Console, leave blank to disable Google Sign-In>
+FRONTEND_URL=http://localhost:5173
 ```
 
 Apply migrations, then run the server:

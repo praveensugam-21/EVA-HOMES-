@@ -84,14 +84,15 @@ export function AuthProvider({ children }) {
     return userProfile;
   }, []);
 
-  // ---- GOOGLE LOGIN FUNCTION ----
-  // Called from LoginPage with the ID token Google's button returns.
-  // Mirrors login() — the backend either finds or creates the account.
-  const googleLogin = useCallback(async (credential) => {
-    const tokenData = await authAPI.google(credential);
-
-    localStorage.setItem("eva_token", tokenData.access_token);
-    setToken(tokenData.access_token);
+  // ---- GOOGLE REDIRECT LOGIN FUNCTION ----
+  // Called from GoogleCallbackPage with the JWT the backend already issued
+  // (Google's redirect flow lands on the backend first, which verifies the
+  // Google ID token server-side and hands our own access_token back via a
+  // URL fragment). Same storage step as login()/register(), just skipping
+  // the API call since we already have the token.
+  const loginWithToken = useCallback(async (accessToken) => {
+    localStorage.setItem("eva_token", accessToken);
+    setToken(accessToken);
 
     const userProfile = await authAPI.getMyProfile();
     localStorage.setItem("eva_user", JSON.stringify(userProfile));
@@ -133,7 +134,7 @@ export function AuthProvider({ children }) {
     isLoading,      // true while checking localStorage on startup
     isLoggedIn: !!user, // convenient boolean shorthand
     login,          // function(email, password)
-    googleLogin,    // function(googleCredential)
+    loginWithToken, // function(accessToken) — used by the Google redirect callback
     logout,         // function()
     register,       // function(userData)
     refreshUser,    // function() — re-syncs user profile from server

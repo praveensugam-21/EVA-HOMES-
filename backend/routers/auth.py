@@ -323,7 +323,6 @@ def google_login(
 def google_login_redirect(
     request: Request,
     credential: str = Form(...),
-    g_csrf_token: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     """
@@ -332,22 +331,20 @@ def google_login_redirect(
     account — this never opens a popup, so it can't be blocked by a popup
     blocker or a privacy extension the way the JS popup flow can.
 
-    Google double-submits a CSRF token: the same value arrives both as a
-    `g_csrf_token` cookie and as a `g_csrf_token` form field. They must
-    match, or this request didn't genuinely come from Google's redirect.
+    Google's documented double-submit CSRF cookie check doesn't apply here:
+    it assumes login_uri shares an origin with the page that rendered the
+    button, so the g_csrf_token cookie (set by GIS's client-side JS on that
+    page's origin) rides along automatically. This app's frontend and
+    backend are on different domains (Vercel/Render), so that cookie can
+    never reach this endpoint — the real security boundary is the ID token
+    verification below, which cryptographically proves Google issued this
+    credential for GOOGLE_CLIENT_ID and a specific real account.
     """
     rate_limiter.check(
         client_identifier(request, "auth-google-redirect"),
         limit=10,
         window_seconds=300,
     )
-
-    cookie_csrf_token = request.cookies.get("g_csrf_token")
-    if not cookie_csrf_token or not g_csrf_token or cookie_csrf_token != g_csrf_token:
-        return RedirectResponse(
-            f"{settings.FRONTEND_URL}/login?google_error=1",
-            status_code=status.HTTP_303_SEE_OTHER,
-        )
 
     try:
         user = _get_or_create_google_user(db, credential)

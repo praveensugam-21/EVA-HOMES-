@@ -80,7 +80,7 @@ class Property(Base):
         onupdate=lambda: datetime.now(timezone.utc)
     )
 
-    owner_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    owner_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     owner = relationship("User", back_populates="properties")
     images = relationship(
         "PropertyImage",
@@ -104,6 +104,6 @@ class PropertyImage(Base):
     caption = Column(String(200), nullable=True)
     order = Column(Integer, default=0)
 
-    property_id = Column(Integer, ForeignKey("properties.id"), nullable=False, index=True)
+    property_id = Column(Integer, ForeignKey("properties.id", ondelete="CASCADE"), nullable=False, index=True)
     property = relationship("Property", back_populates="images")
 

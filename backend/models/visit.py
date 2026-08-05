@@ -15,8 +15,8 @@ class Visit(Base):
     __tablename__ = "visits"
 
     id = Column(Integer, primary_key=True, index=True)
-    property_id = Column(Integer, ForeignKey("properties.id"), nullable=False, index=True)
-    buyer_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    property_id = Column(Integer, ForeignKey("properties.id", ondelete="CASCADE"), nullable=False, index=True)
+    buyer_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
     requested_date = Column(DateTime, nullable=False)
     message = Column(Text, nullable=True)

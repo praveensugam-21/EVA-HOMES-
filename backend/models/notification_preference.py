@@ -10,7 +10,7 @@ class NotificationPreference(Base):
     __tablename__ = "notification_preferences"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False, index=True)
 
     email_on_enquiry = Column(Boolean, default=True, nullable=False)
     email_on_visit_offer_update = Column(Boolean, default=True, nullable=False)

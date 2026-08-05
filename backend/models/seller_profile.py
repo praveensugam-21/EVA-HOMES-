@@ -16,7 +16,7 @@ class SellerProfile(Base):
     __tablename__ = "seller_profiles"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), unique=True, nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), unique=True, nullable=False, index=True)
     business_name = Column(String(150), nullable=True)
 
     # Verification lifecycle: unverified -> pending -> verified | rejected

@@ -7,7 +7,7 @@ class EnquiryNote(Base):
     __tablename__ = "enquiry_notes"
 
     id = Column(Integer, primary_key=True, index=True)
-    enquiry_id = Column(Integer, ForeignKey("enquiries.id"), nullable=False, index=True)
+    enquiry_id = Column(Integer, ForeignKey("enquiries.id", ondelete="CASCADE"), nullable=False, index=True)
     text = Column(Text, nullable=False)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 

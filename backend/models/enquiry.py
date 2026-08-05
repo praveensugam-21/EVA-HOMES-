@@ -17,13 +17,13 @@ class Enquiry(Base):
 
     property_id = Column(
         Integer,
-        ForeignKey("properties.id"),
+        ForeignKey("properties.id", ondelete="CASCADE"),
         nullable=True,
         index=True
     )
     user_id = Column(
         Integer,
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=True,
         index=True
     )

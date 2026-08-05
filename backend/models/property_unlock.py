@@ -31,15 +31,19 @@ class PropertyUnlock(Base):
     )
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
-    property_id = Column(Integer, ForeignKey("properties.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    property_id = Column(Integer, ForeignKey("properties.id", ondelete="CASCADE"), nullable=False, index=True)
 
     status = Column(Enum(UnlockStatus), default=UnlockStatus.PENDING, nullable=False)
     payment_reference = Column(String(100), nullable=True)
 
     requested_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     reviewed_at = Column(DateTime, nullable=True)
-    reviewed_by = Column(Integer, ForeignKey("users.id"), nullable=True)
+    # SET NULL, not CASCADE: this is provenance on the BUYER's own unlock
+    # request (who happened to review it), not the reviewing admin's data —
+    # deleting that admin shouldn't destroy every unlock request they ever
+    # verified.
+    reviewed_by = Column(Integer, ForeignKey("users.id", ondelete="SET NULL"), nullable=True)
 
     user = relationship("User", foreign_keys=[user_id])
     property = relationship("Property", back_populates="unlocks")

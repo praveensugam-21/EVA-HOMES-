@@ -10,7 +10,7 @@ class SellerDocument(Base):
     __tablename__ = "seller_documents"
 
     id = Column(Integer, primary_key=True, index=True)
-    seller_profile_id = Column(Integer, ForeignKey("seller_profiles.id"), nullable=False, index=True)
+    seller_profile_id = Column(Integer, ForeignKey("seller_profiles.id", ondelete="CASCADE"), nullable=False, index=True)
     doc_type = Column(String(50), nullable=False)
     file_url = Column(String(500), nullable=False)
     uploaded_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))

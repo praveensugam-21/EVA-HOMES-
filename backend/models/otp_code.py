@@ -22,7 +22,7 @@ class OTPCode(Base):
     __tablename__ = "otp_codes"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     channel = Column(String(10), nullable=False)
     code_hash = Column(String(255), nullable=False)
     expires_at = Column(DateTime, nullable=False)

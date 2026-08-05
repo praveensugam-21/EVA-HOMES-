@@ -14,8 +14,8 @@ class Offer(Base):
     __tablename__ = "offers"
 
     id = Column(Integer, primary_key=True, index=True)
-    property_id = Column(Integer, ForeignKey("properties.id"), nullable=False, index=True)
-    buyer_id = Column(Integer, ForeignKey("users.id"), nullable=False, index=True)
+    property_id = Column(Integer, ForeignKey("properties.id", ondelete="CASCADE"), nullable=False, index=True)
+    buyer_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
 
     amount = Column(Float, nullable=False)
     message = Column(Text, nullable=True)

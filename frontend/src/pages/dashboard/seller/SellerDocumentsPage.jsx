@@ -5,8 +5,9 @@ import { authAPI, getErrorMessage } from "../../../api/api";
 import { useAuth } from "../../../context/AuthContext";
 
 const DOC_TYPES = [
-  { value: "id_proof", label: "Government ID Proof" },
+  { value: "id_proof", label: "Government ID Proof (required)" },
   { value: "address_proof", label: "Address Proof" },
+  { value: "electricity_bill", label: "Electricity Bill" },
   { value: "business_license", label: "Business License (optional)" },
 ];
 
@@ -61,6 +62,10 @@ export default function SellerDocumentsPage() {
         {error && (
           <div className="bg-red-50 border border-red-100 text-red-700 rounded-lg p-3 mb-4 text-xs font-medium">{error}</div>
         )}
+
+        <p className="text-xs text-muted mb-4">
+          Government ID is required before your application enters review — other documents help but aren't enough on their own.
+        </p>
 
         <form onSubmit={handleUpload} className="flex flex-col sm:flex-row gap-3 mb-6">
           <select

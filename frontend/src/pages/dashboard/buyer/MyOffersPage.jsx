@@ -58,6 +58,7 @@ export default function MyOffersPage() {
                 <Link to={`/properties/${offer.property_id}`} className="font-semibold text-ink hover:underline">
                   {offer.property_title}
                 </Link>
+                {offer.owner_name && <p className="text-xs text-muted mt-0.5">Owner: {offer.owner_name}</p>}
                 <p className="text-sm font-bold text-ink mt-1">Offer: {offer.amount}</p>
                 {offer.message && <p className="text-sm text-muted mt-1">{offer.message}</p>}
               </div>

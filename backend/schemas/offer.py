@@ -34,6 +34,7 @@ class OfferResponse(BaseModel):
     property_title: Optional[str] = None
     property_thumbnail_url: Optional[str] = None
     buyer_name: Optional[str] = None
+    owner_name: Optional[str] = None
 
     model_config = {"from_attributes": True}
 

@@ -21,6 +21,7 @@ from database import Base, engine
 import models
 from routers import (
     auth,
+    availability,
     cities,
     enquiries,
     notifications,
@@ -154,14 +155,35 @@ app.add_middleware(
 
 
 # Security Headers Middleware
+#
+# CSP here covers this API's own HTML surfaces — /docs (Swagger UI) and
+# /redoc — not the main product UI (that's the separate frontend deploy,
+# with its own, stricter policy in frontend/vercel.json). Swagger UI and
+# ReDoc load their JS/CSS from cdn.jsdelivr.net and inject an inline
+# <script> to boot (verified directly against the installed fastapi
+# package's docs.py) — both are explicitly allowed below so those pages
+# keep working instead of silently breaking under a tighter policy.
 @app.middleware("http")
 async def add_security_headers(request: Request, call_next):
     response = await call_next(request)
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
-    response.headers["X-XSS-Protection"] = "1; mode=block"
-    response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
-    response.headers["Content-Security-Policy"] = "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: http:;"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+    response.headers["Permissions-Policy"] = (
+        "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+    )
+    response.headers["Strict-Transport-Security"] = "max-age=63072000; includeSubDomains"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com data:; "
+        "img-src 'self' data: https://fastapi.tiangolo.com; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "object-src 'none';"
+    )
     return response
 
 # Mount static folder for uploads
@@ -178,6 +200,7 @@ app.include_router(visits.router)
 app.include_router(offers.router)
 app.include_router(notifications.router)
 app.include_router(unlocks.router)
+app.include_router(availability.router)
 
 @app.get("/", tags=["Health"])
 def root():

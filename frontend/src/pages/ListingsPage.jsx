@@ -64,7 +64,7 @@ function SkeletonCard() {
   );
 }
 
-const FILTER_KEYS = ["search", "city", "listing_type", "min_price", "max_price", "bedrooms"];
+const FILTER_KEYS = ["search", "city", "listing_type", "property_type", "min_price", "max_price", "bedrooms"];
 
 export default function ListingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -174,7 +174,7 @@ export default function ListingsPage() {
               </div>
             ))}
             <div>
-              <label className="text-xs font-semibold text-muted mb-1 block">Type</label>
+              <label className="text-xs font-semibold text-muted mb-1 block">Listing Type</label>
               <select name="listing_type" id="filter-listing-type" value={filters.listing_type}
                 onChange={handleFilterChange}
                 className="w-full border border-line rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ink">
@@ -182,6 +182,19 @@ export default function ListingsPage() {
                 <option value="buy">Buy</option>
                 <option value="rent">Rent</option>
                 <option value="commercial">Commercial</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs font-semibold text-muted mb-1 block">Property Type</label>
+              <select name="property_type" id="filter-property-type" value={filters.property_type}
+                onChange={handleFilterChange}
+                className="w-full border border-line rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ink">
+                <option value="">All Properties</option>
+                <option value="apartment">Apartment</option>
+                <option value="villa">Villa</option>
+                <option value="plot">Plot</option>
+                <option value="commercial">Commercial</option>
+                <option value="house">House</option>
               </select>
             </div>
           </div>

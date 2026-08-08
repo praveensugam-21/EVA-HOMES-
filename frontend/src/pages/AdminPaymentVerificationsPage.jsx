@@ -103,18 +103,28 @@ export default function AdminPaymentVerificationsPage() {
                         <img src={item.property_thumbnail_url} alt="" className="w-16 h-16 rounded-lg object-cover shrink-0" />
                       )}
                       <div className="min-w-0">
-                        <Link to={`/properties/${item.property_id}`} className="font-semibold text-ink hover:underline">
-                          {item.property_title || "Property"}
-                        </Link>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <Link to={`/properties/${item.property_id}`} className="font-semibold text-ink hover:underline">
+                            {item.property_title || "Property"}
+                          </Link>
+                          <span className="text-[10px] font-bold uppercase tracking-wider bg-surface text-ink-soft px-2 py-0.5 rounded">
+                            {item.unlock_type === "map" ? "Map" : "Phone"}
+                          </span>
+                        </div>
                         <p className="text-sm text-muted mt-1">
                           {item.buyer_name} · {item.buyer_email}
                           {item.buyer_phone && ` · ${item.buyer_phone}`}
                         </p>
                         <p className="text-xs text-faint mt-1">
+                          Paid ₹{item.amount_paid}
+                          {" · "}
                           {item.payment_reference ? `Reference: ${item.payment_reference}` : "No reference provided"}
                           {" · "}
                           {new Date(item.requested_at).toLocaleString()}
                         </p>
+                        {item.reviewed_by_name && (
+                          <p className="text-xs text-faint mt-0.5">Reviewed by {item.reviewed_by_name}</p>
+                        )}
                       </div>
                     </div>
 

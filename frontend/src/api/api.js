@@ -212,6 +212,14 @@ export const authAPI = {
   },
 
   /**
+   * List all users with a seller profile, optionally filtered by verification status (admin only).
+   */
+  listSellers: async (params = {}) => {
+    const response = await api.get("/api/auth/sellers", { params });
+    return response.data;
+  },
+
+  /**
    * Approve or reject a seller's verification (admin only).
    * @param {number} userId
    * @param {string} sellerStatus - "unverified" | "pending" | "verified" | "rejected"
@@ -360,11 +368,13 @@ export const propertiesAPI = {
   /**
    * Claim you've paid the (offline UPI) unlock fee for this property.
    * @param {number} id - Property ID
-   * @param {string} [paymentReference] - Optional UTR/transaction ID
+   * @param {"phone"|"map"} unlockType - which unlock this payment is for
+   * @param {string} paymentReference - UTR/transaction ID (required)
    */
-  requestUnlock: async (id, paymentReference) => {
+  requestUnlock: async (id, unlockType, paymentReference) => {
     const response = await api.post(`/api/properties/${id}/unlock-request`, {
-      payment_reference: paymentReference || undefined,
+      unlock_type: unlockType,
+      payment_reference: paymentReference,
     });
     return response.data;
   },
@@ -472,7 +482,7 @@ export const savedPropertiesAPI = {
 // ============================================================
 
 export const visitsAPI = {
-  /** Request a visit as a buyer. @param {Object} data - { property_id, requested_date, message } */
+  /** Book an open visit slot as a buyer. @param {Object} data - { slot_id, message } */
   create: async (data) => {
     const response = await api.post("/api/visits", data);
     return response.data;
@@ -487,6 +497,31 @@ export const visitsAPI = {
   },
   updateStatus: async (id, status) => {
     const response = await api.put(`/api/visits/${id}`, { status });
+    return response.data;
+  },
+};
+
+// ============================================================
+// VISIT AVAILABILITY SLOTS (specific-date, seller-defined)
+// ============================================================
+export const availabilityAPI = {
+  /** Add a visit slot for one of your own properties. @param {Object} data - { property_id, specific_date, start_time, end_time } */
+  create: async (data) => {
+    const response = await api.post("/api/sellers/me/availability-slots", data);
+    return response.data;
+  },
+  /** List your own visit slots (all properties). */
+  mine: async () => {
+    const response = await api.get("/api/sellers/me/availability-slots");
+    return response.data;
+  },
+  /** Remove one of your own slots (only if not yet booked). */
+  remove: async (id) => {
+    await api.delete(`/api/sellers/me/availability-slots/${id}`);
+  },
+  /** List unbooked, upcoming visit slots for a property (public). */
+  forProperty: async (propertyId) => {
+    const response = await api.get(`/api/properties/${propertyId}/availability`);
     return response.data;
   },
 };

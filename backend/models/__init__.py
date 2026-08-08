@@ -16,6 +16,7 @@ from models.enquiry_note import EnquiryNote
 from models.broker_settings import BrokerSettings
 from models.saved_property import SavedProperty
 from models.visit import Visit
+from models.availability_slot import AvailabilitySlot
 from models.offer import Offer
 from models.notification import Notification
 from models.notification_preference import NotificationPreference

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { FaBed, FaBath, FaRulerCombined, FaMapMarkerAlt, FaCheckCircle, FaSpinner, FaCar, FaMap, FaPhoneAlt, FaWhatsapp, FaUserShield, FaTrash, FaExclamationTriangle, FaTimes, FaClock, FaHeart, FaRegHeart, FaCalendarPlus, FaHandHoldingUsd, FaLock, FaQrcode } from "react-icons/fa";
-import { propertiesAPI, enquiriesAPI, savedPropertiesAPI, visitsAPI, offersAPI, unlocksAPI, settingsAPI, getErrorMessage } from "../api/api";
+import { propertiesAPI, enquiriesAPI, savedPropertiesAPI, visitsAPI, availabilityAPI, offersAPI, unlocksAPI, settingsAPI, getErrorMessage } from "../api/api";
 import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
@@ -30,7 +30,10 @@ export default function PropertyDetailPage() {
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [showVisitForm, setShowVisitForm] = useState(false);
-  const [visitData, setVisitData] = useState({ requested_date: "", message: "" });
+  const [availableSlots, setAvailableSlots] = useState([]);
+  const [isLoadingSlots, setIsLoadingSlots] = useState(false);
+  const [visitData, setVisitData] = useState({ slot_id: "", message: "" });
+  const [visitConfirming, setVisitConfirming] = useState(false);
   const [visitStatus, setVisitStatus] = useState(""); // "success" | "error" | ""
   const [visitError, setVisitError] = useState("");
   const [isSubmittingVisit, setIsSubmittingVisit] = useState(false);
@@ -40,14 +43,15 @@ export default function PropertyDetailPage() {
   const [offerError, setOfferError] = useState("");
   const [isSubmittingOffer, setIsSubmittingOffer] = useState(false);
 
-  // Location + owner-phone unlock (paid, manually verified)
+  // Phone number + map location are two independent, separately-priced unlocks
   const [paymentInfo, setPaymentInfo] = useState(null);
-  const [unlockRequest, setUnlockRequest] = useState(null); // this user's own request for this property, if any
+  const [phoneUnlock, setPhoneUnlock] = useState(null); // this user's own phone unlock request, if any
+  const [mapUnlock, setMapUnlock] = useState(null); // this user's own map unlock request, if any
+  const [unlockTypeInProgress, setUnlockTypeInProgress] = useState(null); // "phone" | "map" — which the modal is for
   const [paymentReference, setPaymentReference] = useState("");
   const [isSubmittingUnlock, setIsSubmittingUnlock] = useState(false);
   const [unlockError, setUnlockError] = useState("");
   const [showPaymentQR, setShowPaymentQR] = useState(false);
-  const [showReferenceField, setShowReferenceField] = useState(false);
 
   const refreshPropertyAndContact = async () => {
     const [data, contactData] = await Promise.all([
@@ -82,18 +86,31 @@ export default function PropertyDetailPage() {
   useEffect(() => {
     if (!user) return;
     unlocksAPI.mine().then((data) => {
-      const mine = data.items.find((item) => item.property_id === Number(id));
-      setUnlockRequest(mine || null);
+      const mine = data.items.filter((item) => item.property_id === Number(id));
+      setPhoneUnlock(mine.find((item) => item.unlock_type === "phone") || null);
+      setMapUnlock(mine.find((item) => item.unlock_type === "map") || null);
     }).catch(() => {});
   }, [user, id]);
 
+  const openUnlockModal = (unlockType) => {
+    setUnlockTypeInProgress(unlockType);
+    setPaymentReference("");
+    setUnlockError("");
+    setShowPaymentQR(true);
+  };
+
   const handleUnlockRequest = async (e) => {
     e.preventDefault();
+    if (!paymentReference.trim()) {
+      setUnlockError("Payment reference is required.");
+      return;
+    }
     setIsSubmittingUnlock(true);
     setUnlockError("");
     try {
-      const created = await propertiesAPI.requestUnlock(id, paymentReference.trim());
-      setUnlockRequest(created);
+      const created = await propertiesAPI.requestUnlock(id, unlockTypeInProgress, paymentReference.trim());
+      if (unlockTypeInProgress === "phone") setPhoneUnlock(created);
+      else setMapUnlock(created);
       setShowPaymentQR(false);
     } catch (err) {
       setUnlockError(getErrorMessage(err, "Failed to submit — please try again."));
@@ -126,20 +143,51 @@ export default function PropertyDetailPage() {
     }
   };
 
+  const loadAvailableSlots = async () => {
+    setIsLoadingSlots(true);
+    try {
+      const data = await availabilityAPI.forProperty(id);
+      setAvailableSlots(data.items);
+    } catch {
+      setAvailableSlots([]);
+    } finally {
+      setIsLoadingSlots(false);
+    }
+  };
+
+  const handleVisitFormToggle = () => {
+    setShowVisitForm((v) => {
+      const next = !v;
+      if (next) loadAvailableSlots();
+      return next;
+    });
+    setShowOfferForm(false);
+  };
+
   const handleVisitSubmit = async (e) => {
     e.preventDefault();
+    if (!visitData.slot_id) {
+      setVisitError("Pick a slot first.");
+      return;
+    }
+    // "We'll notify the owner" confirm step before actually booking.
+    setVisitConfirming(true);
+  };
+
+  const confirmVisitBooking = async () => {
     setIsSubmittingVisit(true);
     setVisitError("");
     try {
       await visitsAPI.create({
-        property_id: Number(id),
-        requested_date: new Date(visitData.requested_date).toISOString(),
+        slot_id: Number(visitData.slot_id),
         message: visitData.message || undefined,
       });
       setVisitStatus("success");
+      setVisitConfirming(false);
     } catch (err) {
       setVisitStatus("error");
       setVisitError(getErrorMessage(err, "Failed to request a visit."));
+      setVisitConfirming(false);
     } finally {
       setIsSubmittingVisit(false);
     }
@@ -162,6 +210,22 @@ export default function PropertyDetailPage() {
     } finally {
       setIsSubmittingOffer(false);
     }
+  };
+
+  // Tracks a WhatsApp contact click as a real enquiry so it shows up in the
+  // seller/admin queue and can be followed up on — only possible when the
+  // visitor is logged in (an anonymous click has no name/email to attribute
+  // it to, and the WhatsApp link itself still opens exactly as before).
+  const handleWhatsAppClick = () => {
+    if (!user) return;
+    enquiriesAPI.submit({
+      name: user.full_name,
+      email: user.email,
+      phone: user.phone || undefined,
+      message: `Contacted the agent desk via WhatsApp about "${property.title}".`,
+      property_id: property.id,
+      source: "whatsapp",
+    }).catch(() => {});
   };
 
   const handleEnquiryChange = (e) => {
@@ -302,12 +366,16 @@ export default function PropertyDetailPage() {
               <div className="w-14 h-14 rounded-2xl bg-accent-soft text-accent flex items-center justify-center mx-auto mb-3">
                 <FaLock className="text-2xl" />
               </div>
-              <h2 className="text-xl font-bold text-ink">Unlock Exact Location &amp; Owner's Number</h2>
+              <h2 className="text-xl font-bold text-ink">
+                Unlock {unlockTypeInProgress === "map" ? "Exact Location" : "Owner's Phone Number"}
+              </h2>
               <p className="text-sm text-muted mt-1">Scan, pay, then confirm — one time only for this listing.</p>
             </div>
 
             <div className="text-center mb-6">
-              <span className="font-display text-4xl font-bold text-ink">₹{paymentInfo?.unlock_fee ?? 20}</span>
+              <span className="font-display text-4xl font-bold text-ink">
+                ₹{(unlockTypeInProgress === "map" ? paymentInfo?.map_unlock_fee : paymentInfo?.phone_unlock_fee) ?? "—"}
+              </span>
             </div>
 
             {paymentInfo?.payment_qr_image_url && (
@@ -327,23 +395,14 @@ export default function PropertyDetailPage() {
             )}
 
             <form onSubmit={handleUnlockRequest} className="space-y-3">
-              {showReferenceField ? (
-                <input
-                  type="text"
-                  value={paymentReference}
-                  onChange={(e) => setPaymentReference(e.target.value)}
-                  placeholder="Transaction / UTR reference"
-                  className="w-full border border-line rounded-lg px-3.5 py-3 text-sm focus:outline-none focus:border-ink bg-white"
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowReferenceField(true)}
-                  className="text-xs font-semibold text-muted hover:text-ink underline block mx-auto"
-                >
-                  + Add payment reference (optional)
-                </button>
-              )}
+              <input
+                type="text"
+                required
+                value={paymentReference}
+                onChange={(e) => setPaymentReference(e.target.value)}
+                placeholder="Transaction / UTR reference"
+                className="w-full border border-line rounded-lg px-3.5 py-3 text-sm focus:outline-none focus:border-ink bg-white"
+              />
               {unlockError && <p className="text-xs text-red-600 text-center">{unlockError}</p>}
               <button
                 type="submit"
@@ -526,7 +585,7 @@ export default function PropertyDetailPage() {
             )}
 
             {/* Embedded Live Google Maps Preview — exact location, paywalled */}
-            {property.location_unlocked ? (
+            {property.map_unlocked ? (
               <div className="bg-white rounded-xl p-6 border-2 border-ink space-y-4">
                 <h2 className="text-lg font-bold text-ink flex items-center gap-2">
                   <FaMap className="text-muted" /> Location Map
@@ -557,31 +616,31 @@ export default function PropertyDetailPage() {
             ) : (
               <div className="bg-white rounded-xl p-6 border-2 border-ink space-y-4">
                 <h2 className="text-lg font-bold text-ink flex items-center gap-2">
-                  <FaLock className="text-muted" /> Exact Location &amp; Owner's Number
+                  <FaLock className="text-muted" /> Exact Location
                 </h2>
                 <p className="text-ink-soft text-sm">
-                  Pay a one-time <span className="font-bold text-ink">₹{paymentInfo?.unlock_fee ?? 20}</span> to unlock
-                  the exact map pin and the owner's real phone number for this listing.
+                  Pay a one-time <span className="font-bold text-ink">₹{paymentInfo?.map_unlock_fee ?? 30}</span> to unlock
+                  the exact map pin for this listing.
                 </p>
 
-                {unlockRequest?.status === "pending" ? (
+                {mapUnlock?.status === "pending" ? (
                   <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 flex items-center gap-2">
                     <FaClock /> Payment submitted — usually reviewed within an hour.
                   </div>
-                ) : unlockRequest?.status === "rejected" ? (
+                ) : mapUnlock?.status === "rejected" ? (
                   <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
                     Your last payment couldn't be verified. Please try again below.
                   </div>
                 ) : null}
 
-                {(!unlockRequest || unlockRequest.status === "rejected") && (
+                {(!mapUnlock || mapUnlock.status === "rejected") && (
                   user ? (
                     <button
                       type="button"
-                      onClick={() => setShowPaymentQR(true)}
+                      onClick={() => openUnlockModal("map")}
                       className="w-full flex items-center justify-center gap-2 bg-ink hover:bg-accent-hover text-white text-sm font-semibold py-3 rounded-lg transition"
                     >
-                      <FaQrcode /> Pay ₹{paymentInfo?.unlock_fee ?? 20}
+                      <FaQrcode /> Pay ₹{paymentInfo?.map_unlock_fee ?? 30}
                     </button>
                   ) : (
                     <button
@@ -601,12 +660,20 @@ export default function PropertyDetailPage() {
             <div className="bg-white rounded-xl p-6 border-2 border-ink sticky top-24">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h3 className="text-base font-bold text-ink">Contact Broker</h3>
+                  <h3 className="text-base font-bold text-ink">Contact Agent</h3>
                   <p className="text-faint text-xs mt-1">Verified contact desk for this property</p>
                 </div>
-                <div className="h-9 w-9 rounded-lg bg-ink text-white flex items-center justify-center">
-                  <FaUserShield />
-                </div>
+                {contact?.broker_photo_url ? (
+                  <img
+                    src={contact.broker_photo_url}
+                    alt={contact.broker_name || "Agent"}
+                    className="h-9 w-9 rounded-lg object-cover border border-line-soft"
+                  />
+                ) : (
+                  <div className="h-9 w-9 rounded-lg bg-ink text-white flex items-center justify-center">
+                    <FaUserShield />
+                  </div>
+                )}
               </div>
 
               <div className="mt-5 rounded-lg border border-line-soft bg-surface p-4 space-y-2">
@@ -616,7 +683,7 @@ export default function PropertyDetailPage() {
                 </div>
                 <div className="flex items-center justify-between gap-3 text-sm">
                   <span className="text-muted">Owner phone</span>
-                  {contact?.location_unlocked && contact?.owner_phone ? (
+                  {contact?.phone_unlocked && contact?.owner_phone ? (
                     <a href={`tel:${contact.owner_phone}`} className="font-semibold text-ink hover:text-accent">
                       {contact.owner_phone}
                     </a>
@@ -624,8 +691,25 @@ export default function PropertyDetailPage() {
                     <span className="font-semibold text-ink">{contact?.owner_phone_masked || "Hidden"}</span>
                   )}
                 </div>
+                {!contact?.phone_unlocked && !isOwner && (
+                  phoneUnlock?.status === "pending" ? (
+                    <p className="text-[11px] text-amber-700 flex items-center gap-1.5 pt-1"><FaClock /> Payment submitted — usually reviewed within an hour.</p>
+                  ) : user ? (
+                    <button
+                      type="button"
+                      onClick={() => openUnlockModal("phone")}
+                      className="text-[11px] font-semibold text-accent hover:underline pt-1"
+                    >
+                      Unlock owner's number — ₹{paymentInfo?.phone_unlock_fee ?? 20}
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => navigate("/login")} className="text-[11px] font-semibold text-accent hover:underline pt-1">
+                      Log in to unlock owner's number
+                    </button>
+                  )
+                )}
                 <p className="text-[11px] leading-relaxed text-muted pt-1">
-                  Owner contact is protected. Buyers connect through the broker desk for visits and negotiation.
+                  Owner contact is protected. Buyers connect through the agent desk for visits and negotiation.
                 </p>
               </div>
 
@@ -640,6 +724,7 @@ export default function PropertyDetailPage() {
                   href={contact?.whatsapp_link || "#"}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={handleWhatsAppClick}
                   className="flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3 py-3 rounded-lg transition"
                 >
                   <FaWhatsapp /> WhatsApp
@@ -650,7 +735,7 @@ export default function PropertyDetailPage() {
                 <div className="grid grid-cols-2 gap-3 mt-3">
                   <button
                     type="button"
-                    onClick={() => { setShowVisitForm((v) => !v); setShowOfferForm(false); }}
+                    onClick={handleVisitFormToggle}
                     className="flex items-center justify-center gap-2 border border-line hover:border-ink text-ink-soft text-xs font-semibold px-3 py-3 rounded-lg transition"
                   >
                     <FaCalendarPlus /> Request Visit
@@ -669,17 +754,55 @@ export default function PropertyDetailPage() {
                 <div className="mt-4 rounded-lg border border-line p-4">
                   {visitStatus === "success" ? (
                     <p className="text-sm text-emerald-700 text-center">Visit requested! Track it under My Visits.</p>
+                  ) : visitConfirming ? (
+                    <div className="space-y-3">
+                      <p className="text-sm text-ink-soft">
+                        Book {availableSlots.find((s) => s.id === Number(visitData.slot_id))?.specific_date}{" "}
+                        {availableSlots.find((s) => s.id === Number(visitData.slot_id))?.start_time?.slice(0, 5)}?
+                        We'll send this request to the owner.
+                      </p>
+                      {visitStatus === "error" && <p className="text-red-500 text-xs">{visitError}</p>}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          onClick={() => setVisitConfirming(false)}
+                          className="flex-1 border border-line hover:border-ink text-ink-soft text-xs font-semibold py-2.5 rounded-lg transition"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          type="button"
+                          disabled={isSubmittingVisit}
+                          onClick={confirmVisitBooking}
+                          className="flex-1 bg-ink hover:bg-accent-hover text-white text-xs font-semibold py-2.5 rounded-lg transition disabled:opacity-60"
+                        >
+                          {isSubmittingVisit ? "Sending..." : "Yes, send to owner"}
+                        </button>
+                      </div>
+                    </div>
                   ) : (
                     <form onSubmit={handleVisitSubmit} className="space-y-3">
                       <div>
-                        <label className="text-xs font-semibold text-muted mb-1 block">Preferred date &amp; time</label>
-                        <input
-                          type="datetime-local"
-                          required
-                          value={visitData.requested_date}
-                          onChange={(e) => setVisitData((p) => ({ ...p, requested_date: e.target.value }))}
-                          className="w-full border border-line rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ink bg-white"
-                        />
+                        <label className="text-xs font-semibold text-muted mb-1 block">Available slots</label>
+                        {isLoadingSlots ? (
+                          <FaSpinner className="animate-spin text-faint" />
+                        ) : availableSlots.length === 0 ? (
+                          <p className="text-xs text-faint">No open slots right now — check back later or message the owner below.</p>
+                        ) : (
+                          <select
+                            required
+                            value={visitData.slot_id}
+                            onChange={(e) => setVisitData((p) => ({ ...p, slot_id: e.target.value }))}
+                            className="w-full border border-line rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-ink bg-white"
+                          >
+                            <option value="">Choose a slot...</option>
+                            {availableSlots.map((slot) => (
+                              <option key={slot.id} value={slot.id}>
+                                {slot.specific_date} · {slot.start_time.slice(0, 5)}–{slot.end_time.slice(0, 5)}
+                              </option>
+                            ))}
+                          </select>
+                        )}
                       </div>
                       <textarea
                         rows={2}
@@ -691,10 +814,10 @@ export default function PropertyDetailPage() {
                       {visitStatus === "error" && <p className="text-red-500 text-xs">{visitError}</p>}
                       <button
                         type="submit"
-                        disabled={isSubmittingVisit}
-                        className="w-full bg-ink hover:bg-accent-hover text-white text-xs font-semibold py-2.5 rounded-lg transition"
+                        disabled={availableSlots.length === 0}
+                        className="w-full bg-ink hover:bg-accent-hover disabled:opacity-50 text-white text-xs font-semibold py-2.5 rounded-lg transition"
                       >
-                        {isSubmittingVisit ? "Submitting..." : "Request Visit"}
+                        Request Visit
                       </button>
                     </form>
                   )}
@@ -745,7 +868,7 @@ export default function PropertyDetailPage() {
                 <div className="bg-emerald-50 border border-emerald-100 rounded-lg p-5 text-center">
                   <FaCheckCircle className="text-emerald-600 text-3xl mx-auto mb-2" />
                   <p className="font-bold text-emerald-800 text-sm">Enquiry Sent</p>
-                  <p className="text-emerald-600 text-xs mt-1">The broker desk will contact you shortly.</p>
+                  <p className="text-emerald-600 text-xs mt-1">The agent desk will contact you shortly.</p>
                   <button
                     type="button"
                     onClick={() => setEnquiryStatus("")}

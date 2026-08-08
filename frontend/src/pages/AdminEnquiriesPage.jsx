@@ -118,7 +118,7 @@ export default function AdminEnquiriesPage() {
             <div>
               <p className="text-xs uppercase tracking-[0.18em] text-faint font-semibold">Admin Workspace</p>
               <h1 className="text-3xl font-bold tracking-tight text-ink mt-1">Enquiries</h1>
-              <p className="text-sm text-muted mt-2">Every new lead appears here for broker follow-up.</p>
+              <p className="text-sm text-muted mt-2">Every new lead appears here for agent follow-up.</p>
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 w-full lg:w-auto">
               <div className="rounded-xl bg-white border-2 border-ink px-4 py-4 min-w-[140px]">

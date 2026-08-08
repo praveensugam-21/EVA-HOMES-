@@ -3,11 +3,12 @@ from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
-from models.property_unlock import UnlockStatus
+from models.property_unlock import UnlockStatus, UnlockType
 
 
 class UnlockRequestCreate(BaseModel):
-    payment_reference: Optional[str] = Field(default=None, max_length=100)
+    unlock_type: UnlockType
+    payment_reference: str = Field(min_length=3, max_length=100)
 
 
 class UnlockReview(BaseModel):
@@ -17,8 +18,10 @@ class UnlockReview(BaseModel):
 class UnlockResponse(BaseModel):
     id: int
     property_id: int
+    unlock_type: UnlockType
     status: UnlockStatus
     payment_reference: Optional[str] = None
+    amount_paid: float
     requested_at: datetime
     reviewed_at: Optional[datetime] = None
 
@@ -33,6 +36,7 @@ class UnlockAdminItem(UnlockResponse):
     buyer_name: Optional[str] = None
     buyer_email: Optional[str] = None
     buyer_phone: Optional[str] = None
+    reviewed_by_name: Optional[str] = None
 
 
 class UnlockListResponse(BaseModel):

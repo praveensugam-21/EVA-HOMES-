@@ -1,15 +1,12 @@
 import { useEffect, useState } from "react";
 import {
-  FaCheckCircle,
-  FaFileAlt,
   FaSearch,
   FaShieldAlt,
   FaSpinner,
-  FaTimesCircle,
   FaUserCheck,
   FaUserSlash,
 } from "react-icons/fa";
-import { Navigate } from "react-router-dom";
+import { Link, Navigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { authAPI, getErrorMessage } from "../api/api";
@@ -38,9 +35,6 @@ export default function AdminUsersPage() {
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [activeId, setActiveId] = useState(null);
   const [error, setError] = useState("");
-  const [expandedUserId, setExpandedUserId] = useState(null);
-  const [docsByUser, setDocsByUser] = useState({});
-  const [docsLoading, setDocsLoading] = useState(false);
 
   useEffect(() => {
     if (!isLoggedIn || !user?.is_admin) {
@@ -112,41 +106,6 @@ export default function AdminUsersPage() {
       }));
     } catch (err) {
       setError(getErrorMessage(err, "Failed to update user."));
-    } finally {
-      setActiveId(null);
-    }
-  };
-
-  const handleToggleDocuments = async (userId) => {
-    if (expandedUserId === userId) {
-      setExpandedUserId(null);
-      return;
-    }
-    setExpandedUserId(userId);
-    if (!docsByUser[userId]) {
-      setDocsLoading(true);
-      try {
-        const docs = await authAPI.getSellerDocuments(userId);
-        setDocsByUser((prev) => ({ ...prev, [userId]: docs }));
-      } catch (err) {
-        setError(getErrorMessage(err, "Failed to load documents."));
-      } finally {
-        setDocsLoading(false);
-      }
-    }
-  };
-
-  const handleSellerVerification = async (userId, sellerStatus) => {
-    setActiveId(userId);
-    setError("");
-    try {
-      const updated = await authAPI.updateSellerVerification(userId, sellerStatus);
-      setData((prev) => ({
-        ...prev,
-        items: prev.items.map((item) => (item.id === userId ? updated : item)),
-      }));
-    } catch (err) {
-      setError(getErrorMessage(err, "Failed to update verification status."));
     } finally {
       setActiveId(null);
     }
@@ -292,54 +251,12 @@ export default function AdminUsersPage() {
                       </div>
 
                       {!item.is_admin && item.has_seller_profile && (
-                        <div className="pt-1">
-                          <button
-                            type="button"
-                            onClick={() => handleToggleDocuments(item.id)}
-                            className="inline-flex items-center gap-2 text-xs font-semibold text-ink-soft hover:text-ink underline"
-                          >
-                            <FaFileAlt className="text-[10px]" />
-                            {expandedUserId === item.id ? "Hide Documents" : "View Documents"}
-                          </button>
-
-                          {expandedUserId === item.id && (
-                            <div className="mt-3 border border-line-soft rounded-lg p-3 space-y-2">
-                              {docsLoading && !docsByUser[item.id] ? (
-                                <FaSpinner className="animate-spin text-faint" />
-                              ) : (docsByUser[item.id] || []).length === 0 ? (
-                                <p className="text-xs text-faint">No documents uploaded yet.</p>
-                              ) : (
-                                (docsByUser[item.id] || []).map((doc) => (
-                                  <div key={doc.id} className="flex items-center justify-between text-xs">
-                                    <span className="text-ink-soft font-medium">{doc.doc_type}</span>
-                                    <a href={doc.file_url} target="_blank" rel="noreferrer" className="text-muted hover:text-ink underline">
-                                      View file
-                                    </a>
-                                  </div>
-                                ))
-                              )}
-
-                              <div className="flex gap-2 pt-2 border-t border-line-soft">
-                                <button
-                                  type="button"
-                                  disabled={activeId === item.id}
-                                  onClick={() => handleSellerVerification(item.id, "verified")}
-                                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold py-2 transition disabled:opacity-60"
-                                >
-                                  <FaCheckCircle className="text-[10px]" /> Verify Seller
-                                </button>
-                                <button
-                                  type="button"
-                                  disabled={activeId === item.id}
-                                  onClick={() => handleSellerVerification(item.id, "rejected")}
-                                  className="flex-1 inline-flex items-center justify-center gap-1.5 rounded-lg border border-red-200 text-red-700 hover:bg-red-50 text-xs font-semibold py-2 transition disabled:opacity-60"
-                                >
-                                  <FaTimesCircle className="text-[10px]" /> Reject
-                                </button>
-                              </div>
-                            </div>
-                          )}
-                        </div>
+                        <p className="text-xs text-faint pt-1">
+                          Manage document review and verification from{" "}
+                          <Link to="/admin/seller-verifications" className="underline hover:text-ink-soft">
+                            Seller Verifications
+                          </Link>.
+                        </p>
                       )}
                     </div>
 

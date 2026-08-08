@@ -6,8 +6,7 @@ VALID_VISIT_STATUSES = {"pending", "confirmed", "rejected", "cancelled", "comple
 
 
 class VisitCreate(BaseModel):
-    property_id: int = Field(gt=0)
-    requested_date: datetime
+    slot_id: int = Field(gt=0)
     message: Optional[str] = Field(default=None, max_length=1000)
 
 
@@ -26,10 +25,12 @@ class VisitResponse(BaseModel):
     id: int
     property_id: int
     buyer_id: int
+    slot_id: Optional[int] = None
     requested_date: datetime
     message: Optional[str] = None
     status: str
     created_at: datetime
+    reminder_sent_at: Optional[datetime] = None
 
     # Denormalized display fields, populated by the router
     property_title: Optional[str] = None

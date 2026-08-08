@@ -1,7 +1,7 @@
 from datetime import datetime, timezone
 import enum
 
-from sqlalchemy import Column, DateTime, Enum, ForeignKey, Integer, String, UniqueConstraint
+from sqlalchemy import Column, DateTime, Enum, Float, ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import relationship
 
 from database import Base
@@ -13,6 +13,11 @@ class UnlockStatus(str, enum.Enum):
     REJECTED = "rejected"
 
 
+class UnlockType(str, enum.Enum):
+    PHONE = "phone"
+    MAP = "map"
+
+
 class PropertyUnlock(Base):
     """
     A buyer's claim to have paid the (offline, UPI/QR) unlock fee for one
@@ -20,22 +25,31 @@ class PropertyUnlock(Base):
     payment_reference and flips status to verified/rejected — nothing here
     talks to a real payment gateway.
 
+    Phone number and map/location are two independent, separately-priced
+    unlocks (unlock_type) — a buyer can hold a verified phone unlock without
+    the map, or vice versa. amount_paid snapshots the fee at request time so
+    a later change to BrokerSettings.phone_unlock_fee/map_unlock_fee doesn't
+    retroactively alter historical records.
+
     Once status == verified, GET /api/properties/{id} and
-    GET /api/properties/{id}/contact start including the real map link and
-    the seller's real phone number for this user_id + property_id pair only.
+    GET /api/properties/{id}/contact start including the real map link
+    and/or the seller's real phone number for this user_id + property_id +
+    unlock_type only.
     """
 
     __tablename__ = "property_unlocks"
     __table_args__ = (
-        UniqueConstraint("user_id", "property_id", name="uq_unlock_user_property"),
+        UniqueConstraint("user_id", "property_id", "unlock_type", name="uq_unlock_user_property_type"),
     )
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
     property_id = Column(Integer, ForeignKey("properties.id", ondelete="CASCADE"), nullable=False, index=True)
+    unlock_type = Column(Enum(UnlockType), nullable=False, default=UnlockType.PHONE)
 
     status = Column(Enum(UnlockStatus), default=UnlockStatus.PENDING, nullable=False)
-    payment_reference = Column(String(100), nullable=True)
+    payment_reference = Column(String(100), nullable=False)
+    amount_paid = Column(Float, nullable=False)
 
     requested_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     reviewed_at = Column(DateTime, nullable=True)

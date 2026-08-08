@@ -1,7 +1,7 @@
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from sqlalchemy import func
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from core.notify import notify
 from core.rate_limit import client_identifier, rate_limiter
@@ -42,25 +42,16 @@ def submit_enquiry(
     (Enquiry.user_id) so it shows up under their "My Enquiries" dashboard.
     A simple per-client rate limit reduces abuse on the public form.
     """
-    if current_user and current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin accounts manage the marketplace and can't submit enquiries.",
-        )
-
     rate_limiter.check(
         client_identifier(request, "submit-enquiry"),
         limit=5,
         window_seconds=60,
     )
 
+    prop = None
     if enquiry_data.property_id:
-        property_exists = (
-            db.query(Property.id)
-            .filter(Property.id == enquiry_data.property_id)
-            .first()
-        )
-        if not property_exists:
+        prop = db.query(Property).filter(Property.id == enquiry_data.property_id).first()
+        if not prop:
             raise HTTPException(status_code=404, detail="Property not found.")
 
     new_enquiry = Enquiry(
@@ -75,6 +66,23 @@ def submit_enquiry(
         user_id=current_user.id if current_user else None,
     )
     db.add(new_enquiry)
+    db.flush()
+
+    if prop:
+        notify(
+            db,
+            user_id=prop.owner_id,
+            title="New enquiry",
+            message=f"{enquiry_data.name} enquired about \"{prop.title}\".",
+            link="/dashboard/seller/enquiries",
+        )
+
+    if current_user:
+        db.add(EnquiryNote(
+            enquiry_id=new_enquiry.id,
+            text="Thanks — we've received your enquiry and the agent desk will be in touch shortly.",
+        ))
+
     db.commit()
     db.refresh(new_enquiry)
     return new_enquiry
@@ -91,6 +99,7 @@ def list_my_enquiries(
 ):
     enquiries = (
         db.query(Enquiry)
+        .options(joinedload(Enquiry.property), selectinload(Enquiry.notes))
         .outerjoin(Property, Property.id == Enquiry.property_id)
         .filter(Enquiry.user_id == current_user.id)
         .order_by(Enquiry.created_at.desc())
@@ -120,6 +129,7 @@ def list_received_enquiries(
 ):
     enquiries = (
         db.query(Enquiry)
+        .options(joinedload(Enquiry.property), selectinload(Enquiry.notes))
         .join(Property, Property.id == Enquiry.property_id)
         .filter(Property.owner_id == current_user.id)
         .order_by(Enquiry.created_at.desc())
@@ -155,7 +165,11 @@ def list_enquiries(
     """
     Returns broker-facing enquiry data with counts for the admin dashboard.
     """
-    query = db.query(Enquiry).outerjoin(Property, Property.id == Enquiry.property_id)
+    query = (
+        db.query(Enquiry)
+        .options(joinedload(Enquiry.property), selectinload(Enquiry.notes))
+        .outerjoin(Property, Property.id == Enquiry.property_id)
+    )
 
     if status_filter:
         query = query.filter(Enquiry.status == status_filter)
@@ -216,7 +230,7 @@ def update_enquiry(
         raise HTTPException(status_code=403, detail="Not authorized to update this enquiry.")
 
     if enquiry_data.broker_notes is not None and not current_user.is_admin:
-        raise HTTPException(status_code=403, detail="Only the broker desk can edit broker notes.")
+        raise HTTPException(status_code=403, detail="Only the agent desk can edit these notes.")
 
     if enquiry_data.status is not None:
         enquiry.status = enquiry_data.status
@@ -238,17 +252,21 @@ def update_enquiry(
     "/{enquiry_id}/notes",
     response_model=EnquiryNoteOut,
     status_code=status.HTTP_201_CREATED,
-    summary="Add a timestamped broker note to an enquiry (admin only)"
+    summary="Add a timestamped reply to an enquiry (admin, or the seller who owns the linked property)"
 )
 def add_enquiry_note(
     enquiry_id: int,
     note_data: EnquiryNoteCreate,
     db: Session = Depends(get_db),
-    current_admin: User = Depends(get_admin_user),
+    current_user: User = Depends(get_current_user),
 ):
     enquiry = db.query(Enquiry).filter(Enquiry.id == enquiry_id).first()
     if not enquiry:
         raise HTTPException(status_code=404, detail="Enquiry not found.")
+
+    is_owner = enquiry.property is not None and enquiry.property.owner_id == current_user.id
+    if not current_user.is_admin and not is_owner:
+        raise HTTPException(status_code=403, detail="Not authorized to reply to this enquiry.")
 
     note = EnquiryNote(enquiry_id=enquiry_id, text=note_data.text)
     db.add(note)

@@ -30,13 +30,23 @@ def _supabase_headers(content_type: str | None = None) -> dict:
     return headers
 
 
-def upload_bytes(bucket: str, path: str, content: bytes, content_type: str) -> None:
-    """Uploads raw bytes to a Supabase Storage bucket at the given path."""
+async def upload_bytes(bucket: str, path: str, content: bytes, content_type: str) -> None:
+    """
+    Uploads raw bytes to a Supabase Storage bucket at the given path.
+
+    Async (not the blocking `httpx.post`) because every caller is an async
+    route handler — a synchronous call here would block the whole Uvicorn
+    worker's event loop for the duration of the upload (hundreds of ms to
+    seconds), stalling every other concurrent request on that worker, not
+    just the uploader's own. This was the root cause of uploads feeling
+    slow under any concurrent traffic.
+    """
     url = f"{settings.SUPABASE_URL}/storage/v1/object/{bucket}/{path}"
     headers = _supabase_headers(content_type)
     headers["x-upsert"] = "true"
 
-    response = httpx.post(url, headers=headers, content=content, timeout=30.0)
+    async with httpx.AsyncClient() as client:
+        response = await client.post(url, headers=headers, content=content, timeout=30.0)
     if response.status_code not in (200, 201):
         raise StorageError(f"Supabase upload failed ({response.status_code}): {response.text}")
 

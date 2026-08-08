@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { FaClipboardList, FaSpinner } from "react-icons/fa";
+import { FaCheckCircle, FaClipboardList, FaPaperPlane, FaSpinner } from "react-icons/fa";
 import DashboardLayout from "../../../layouts/DashboardLayout";
 import StatusBadge from "../../../components/dashboard/StatusBadge";
 import { enquiriesAPI, getErrorMessage } from "../../../api/api";
@@ -9,6 +9,8 @@ export default function SellerEnquiriesPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
   const [activeId, setActiveId] = useState(null);
+  const [draftNotes, setDraftNotes] = useState({});
+  const [sentId, setSentId] = useState(null);
 
   useEffect(() => {
     (async () => {
@@ -30,6 +32,27 @@ export default function SellerEnquiriesPage() {
       setItems((prev) => prev.map((e) => (e.id === id ? updated : e)));
     } catch (err) {
       setError(getErrorMessage(err, "Failed to update enquiry."));
+    } finally {
+      setActiveId(null);
+    }
+  };
+
+  const handleSendNote = async (item) => {
+    const text = (draftNotes[item.id] || "").trim();
+    if (!text) return;
+
+    setActiveId(item.id);
+    setError("");
+    try {
+      const note = await enquiriesAPI.addNote(item.id, text);
+      setItems((prev) =>
+        prev.map((it) => (it.id === item.id ? { ...it, notes: [...(it.notes || []), note] } : it))
+      );
+      setDraftNotes((prev) => ({ ...prev, [item.id]: "" }));
+      setSentId(item.id);
+      setTimeout(() => setSentId((current) => (current === item.id ? null : current)), 1800);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to send reply."));
     } finally {
       setActiveId(null);
     }
@@ -71,6 +94,49 @@ export default function SellerEnquiriesPage() {
                     Mark {s}
                   </button>
                 ))}
+              </div>
+
+              <div className="mt-4 pt-4 border-t border-line-soft">
+                <span className="block text-xs font-semibold text-muted mb-1">Reply to buyer</span>
+                <p className="text-[11px] text-faint mb-1.5">
+                  {item.user_id
+                    ? "Visible to the buyer on their My Enquiries page, with a notification. The admin can see this reply too."
+                    : "This enquiry has no linked account — the buyer can't see replies here. Call or email them directly instead."}
+                </p>
+
+                {item.notes && item.notes.length > 0 && (
+                  <div className="space-y-2 mb-2 max-h-40 overflow-y-auto pr-1">
+                    {item.notes.map((note) => (
+                      <div key={note.id} className="rounded-lg bg-surface border border-line-soft px-3 py-2">
+                        <p className="text-sm text-ink whitespace-pre-line">{note.text}</p>
+                        <p className="text-[11px] text-faint mt-1">{new Date(note.created_at).toLocaleString()}</p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {sentId === item.id && (
+                  <p className="flex items-center gap-1.5 text-emerald-600 text-xs font-semibold mb-2">
+                    <FaCheckCircle className="text-[10px]" /> Reply sent
+                  </p>
+                )}
+
+                <textarea
+                  rows={3}
+                  value={draftNotes[item.id] || ""}
+                  placeholder="Write a reply the buyer will see..."
+                  className="w-full border border-line rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-ink resize-none bg-white"
+                  onChange={(e) => setDraftNotes((prev) => ({ ...prev, [item.id]: e.target.value }))}
+                />
+                <button
+                  type="button"
+                  disabled={activeId === item.id || !(draftNotes[item.id] || "").trim()}
+                  onClick={() => handleSendNote(item)}
+                  className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-ink px-3 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover transition disabled:opacity-60"
+                >
+                  {activeId === item.id ? <FaSpinner className="animate-spin text-xs" /> : <FaPaperPlane className="text-xs" />}
+                  Send Reply
+                </button>
               </div>
             </article>
           ))}

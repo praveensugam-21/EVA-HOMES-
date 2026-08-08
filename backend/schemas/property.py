@@ -114,13 +114,14 @@ class PropertyResponse(PropertyBase):
     images: List[PropertyImageResponse] = []
 
     # Overridden as Optional — the router nulls this out unless the viewer
-    # owns the listing, is an admin, or has a verified PropertyUnlock for it.
+    # owns the listing, is an admin, or has a verified map PropertyUnlock for it.
     google_maps_link: Optional[str] = None
 
-    # True if the caller is entitled to see the real google_maps_link above
-    # (and the seller's real phone via GET /{id}/contact). Drives whether
-    # the frontend shows the map or the "pay to unlock" card.
-    location_unlocked: bool = False
+    # True if the caller is entitled to see the real google_maps_link above.
+    # Drives whether the frontend shows the map or the "pay to unlock" card.
+    # Independent from phone_unlocked (see PropertyContactResponse) — a
+    # buyer can hold either, both, or neither.
+    map_unlocked: bool = False
 
     # Owner's name — we'll populate this manually in the router
     owner_name: Optional[str] = None
@@ -169,11 +170,12 @@ class PropertyContactResponse(BaseModel):
     owner_phone_masked: Optional[str] = None
     broker_name: str
     broker_phone: str
+    broker_photo_url: Optional[str] = None
     whatsapp_link: str
 
-    # Only populated when the caller has a verified PropertyUnlock for this
-    # property (or owns/administers it) — the real, unmasked owner phone.
-    location_unlocked: bool = False
+    # Only populated when the caller has a verified phone PropertyUnlock for
+    # this property (or owns/administers it) — the real, unmasked owner phone.
+    phone_unlocked: bool = False
     owner_phone: Optional[str] = None
 
 

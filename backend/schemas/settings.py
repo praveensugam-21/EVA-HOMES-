@@ -20,7 +20,7 @@ class BrokerSettingsBase(BaseModel):
     def validate_name(cls, value):
         name = value.strip()
         if len(name) < 2:
-            raise ValueError("Broker name is required.")
+            raise ValueError("Agent name is required.")
         return name
 
     @field_validator("broker_phone", "broker_whatsapp")
@@ -34,12 +34,14 @@ class BrokerSettingsBase(BaseModel):
 
 
 class BrokerSettingsUpdate(BrokerSettingsBase):
-    # Offline/manual payment details for the location+phone unlock feature.
-    # Optional so admin can save broker-contact edits without having to
+    # Offline/manual payment details for the location/phone unlock feature.
+    # Optional so admin can save agent-contact edits without having to
     # resend these every time (and vice versa).
+    photo_url: Optional[str] = None
     payment_qr_image_url: Optional[str] = None
     payment_phone: Optional[str] = None
-    unlock_fee: Optional[float] = None
+    phone_unlock_fee: Optional[float] = None
+    map_unlock_fee: Optional[float] = None
 
     @field_validator("payment_phone")
     @classmethod
@@ -48,7 +50,7 @@ class BrokerSettingsUpdate(BrokerSettingsBase):
             return value
         return normalize_phone(value)
 
-    @field_validator("unlock_fee")
+    @field_validator("phone_unlock_fee", "map_unlock_fee")
     @classmethod
     def validate_unlock_fee(cls, value):
         if value is not None and value < 0:
@@ -58,9 +60,11 @@ class BrokerSettingsUpdate(BrokerSettingsBase):
 
 class BrokerSettingsResponse(BrokerSettingsBase):
     id: int
+    photo_url: Optional[str] = None
     payment_qr_image_url: Optional[str] = None
     payment_phone: Optional[str] = None
-    unlock_fee: float
+    phone_unlock_fee: float
+    map_unlock_fee: float
     updated_at: datetime
 
     model_config = {"from_attributes": True}
@@ -70,4 +74,5 @@ class PaymentInfoResponse(BaseModel):
     """Public-facing subset — what a buyer needs to see to pay the unlock fee."""
     payment_qr_image_url: Optional[str] = None
     payment_phone: Optional[str] = None
-    unlock_fee: float
+    phone_unlock_fee: float
+    map_unlock_fee: float

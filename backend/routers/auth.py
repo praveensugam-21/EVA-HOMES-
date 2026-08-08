@@ -7,10 +7,11 @@ from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Upl
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token as google_id_token
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, contains_eager, joinedload
 
 from core import storage
 from core.config import settings
+from core.notify import notify
 from core.rate_limit import client_identifier, rate_limiter
 from core.security import create_access_token, decode_access_token, hash_password, verify_password
 from core.storage import is_supabase_enabled
@@ -119,18 +120,13 @@ def get_admin_user(current_user: User = Depends(get_current_user)) -> User:
 def get_seller_user(current_user: User = Depends(get_current_user)) -> User:
     """
     Only accounts that have activated a seller profile may create/manage
-    listings. Admins manage the marketplace, not participate in it, so
-    they're deliberately excluded here too — their listing moderation
-    powers (approve/reject/delete any listing) go through get_admin_user
-    or an explicit is_admin check instead, never through this dependency.
+    listings. An admin may also hold a seller profile (opted in like any
+    other account) and list properties — their separate moderation powers
+    (approve/reject/delete/feature any listing) still go through
+    get_admin_user or an explicit is_admin check, unaffected by this.
     Buyer-only accounts can activate a seller profile at any time via
     POST /api/auth/me/seller-profile, no separate registration needed.
     """
-    if current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin accounts manage the marketplace and don't list properties themselves.",
-        )
     if not current_user.has_seller_profile:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
@@ -558,12 +554,6 @@ def create_my_seller_profile(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin accounts manage the marketplace and can't hold a seller profile.",
-        )
-
     if current_user.has_seller_profile:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
@@ -704,7 +694,7 @@ async def upload_seller_document(
 
     if is_supabase_enabled():
         try:
-            storage.upload_bytes(settings.SUPABASE_BUCKET_DOCS, unique_filename, content, file.content_type)
+            await storage.upload_bytes(settings.SUPABASE_BUCKET_DOCS, unique_filename, content, file.content_type)
         except storage.StorageError as e:
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
         # Private bucket — store the bare path, not a URL; resolve_document_url()
@@ -732,9 +722,18 @@ async def upload_seller_document(
         file_url=stored_file_url,
     )
     db.add(document)
+    db.flush()
 
-    # A fresh or resubmitted document moves the seller back into the review queue.
-    if seller_profile.seller_status in ("unverified", "rejected"):
+    # Government ID is mandatory before a seller enters the review queue —
+    # any other document type (address proof, business license) alone
+    # isn't enough to move status to pending.
+    has_id_proof = (
+        db.query(SellerDocument)
+        .filter(SellerDocument.seller_profile_id == seller_profile.id, SellerDocument.doc_type == "id_proof")
+        .first()
+        is not None
+    )
+    if seller_profile.seller_status in ("unverified", "rejected") and has_id_proof:
         seller_profile.seller_status = "pending"
 
     db.commit()
@@ -761,7 +760,7 @@ def list_users(
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_admin_user),
 ):
-    query = db.query(User)
+    query = db.query(User).options(joinedload(User.seller_profile))
 
     if search:
         search_term = f"%{search.strip()}%"
@@ -874,9 +873,48 @@ def update_seller_verification(
         )
 
     user.seller_profile.seller_status = verification_data.seller_status
+    if verification_data.seller_status in ("verified", "rejected"):
+        title = "Seller verification approved" if verification_data.seller_status == "verified" else "Seller verification rejected"
+        message = (
+            "Your seller profile is verified — you're all set to list properties."
+            if verification_data.seller_status == "verified"
+            else "Your seller verification was rejected. Check your submitted documents and try again."
+        )
+        notify(db, user_id=user.id, title=title, message=message, link="/dashboard/seller/verification")
     db.commit()
     db.refresh(user)
     return user
+
+
+@router.get(
+    "/sellers",
+    response_model=UserAdminListResponse,
+    summary="Get all users with a seller profile, optionally filtered by verification status (admin only)"
+)
+def list_sellers(
+    status_filter: Optional[str] = Query(None, alias="status"),
+    limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(get_admin_user),
+):
+    query = (
+        db.query(User)
+        .join(SellerProfile, User.id == SellerProfile.user_id)
+        .options(contains_eager(User.seller_profile))
+    )
+
+    if status_filter:
+        query = query.filter(SellerProfile.seller_status == status_filter)
+
+    total = query.count()
+    users = (
+        query.order_by((SellerProfile.seller_status == "pending").desc(), User.created_at.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return UserAdminListResponse(items=users, total=total)
 
 
 @router.post("/login-form", response_model=Token, include_in_schema=False)

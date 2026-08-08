@@ -10,13 +10,16 @@ class BrokerSettings(Base):
     broker_name = Column(String(100), nullable=False)
     broker_phone = Column(String(20), nullable=False)
     broker_whatsapp = Column(String(20), nullable=False)
+    photo_url = Column(String(500), nullable=True)
 
-    # Offline/manual payment details for the per-property location+phone
+    # Offline/manual payment details for the per-property location/phone
     # unlock feature (see models/property_unlock.py). No payment gateway —
     # buyers pay via UPI to this QR/phone directly, admin verifies manually.
+    # Phone and map/location are two independent, separately-priced unlocks.
     payment_qr_image_url = Column(String(500), nullable=True)
     payment_phone = Column(String(20), nullable=True)
-    unlock_fee = Column(Float, default=20.0, nullable=False)
+    phone_unlock_fee = Column(Float, default=20.0, nullable=False)
+    map_unlock_fee = Column(Float, default=30.0, nullable=False)
 
     updated_at = Column(
         DateTime,

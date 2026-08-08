@@ -1,17 +1,22 @@
 # ============================================================
 # routers/visits.py — Property Visit Requests
 # ============================================================
-# POST /api/visits              → buyer requests a visit
-# GET  /api/visits/mine          → buyer's own visit requests
-# GET  /api/visits/received      → seller's incoming visit requests (their properties)
-# PUT  /api/visits/{id}          → seller responds, or buyer cancels
+# POST /api/visits                        → buyer books an open availability slot
+# GET  /api/visits/mine                    → buyer's own visit requests
+# GET  /api/visits/received                → seller's incoming visit requests (their properties)
+# PUT  /api/visits/{id}                    → seller responds, or buyer cancels
+# POST /api/visits/dispatch-reminders      → cron-triggered, "1 hour before" reminders
 # ============================================================
 
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
+from datetime import datetime, timedelta, timezone
 
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from sqlalchemy.orm import Session, joinedload
+
+from core.config import settings
 from core.notify import notify
 from database import get_db
+from models.availability_slot import AvailabilitySlot
 from models.property import Property
 from models.user import User
 from models.visit import Visit
@@ -29,28 +34,34 @@ def _to_response(visit: Visit) -> VisitResponse:
     return response
 
 
-@router.post("", response_model=VisitResponse, status_code=status.HTTP_201_CREATED, summary="Request a property visit")
+@router.post("", response_model=VisitResponse, status_code=status.HTTP_201_CREATED, summary="Book an open visit slot")
 def create_visit(
     visit_data: VisitCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin accounts manage the marketplace and can't request visits.",
-        )
+    slot = db.query(AvailabilitySlot).filter(AvailabilitySlot.id == visit_data.slot_id).first()
+    if not slot:
+        raise HTTPException(status_code=404, detail="Visit slot not found.")
+    if slot.is_booked:
+        raise HTTPException(status_code=409, detail="This slot has already been booked. Pick another one.")
 
-    prop = db.query(Property).filter(Property.id == visit_data.property_id).first()
+    prop = db.query(Property).filter(Property.id == slot.property_id).first()
     if not prop:
         raise HTTPException(status_code=404, detail="Property not found.")
+
+    # Naive UTC throughout this app (no per-user timezone handling exists
+    # anywhere else) — the slot's date/time is stored and compared as-is.
+    requested_date = datetime.combine(slot.specific_date, slot.start_time)
 
     visit = Visit(
         property_id=prop.id,
         buyer_id=current_user.id,
-        requested_date=visit_data.requested_date,
+        slot_id=slot.id,
+        requested_date=requested_date,
         message=visit_data.message,
     )
+    slot.is_booked = True
     db.add(visit)
     db.flush()
 
@@ -74,6 +85,7 @@ def list_my_visits(
 ):
     visits = (
         db.query(Visit)
+        .options(joinedload(Visit.property), joinedload(Visit.buyer))
         .filter(Visit.buyer_id == current_user.id)
         .order_by(Visit.created_at.desc())
         .all()
@@ -88,6 +100,7 @@ def list_received_visits(
 ):
     visits = (
         db.query(Visit)
+        .options(joinedload(Visit.property), joinedload(Visit.buyer))
         .join(Property, Property.id == Visit.property_id)
         .filter(Property.owner_id == current_user.id)
         .order_by(Visit.created_at.desc())
@@ -116,6 +129,10 @@ def update_visit(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Buyers can only cancel a visit request.")
 
     visit.status = update_data.status
+    # Freed back into the pool — a rejected/cancelled visit shouldn't
+    # permanently lock out the slot from every other buyer.
+    if update_data.status in ("cancelled", "rejected") and visit.slot:
+        visit.slot.is_booked = False
     db.flush()
 
     if is_seller:
@@ -138,3 +155,56 @@ def update_visit(
     db.commit()
     db.refresh(visit)
     return _to_response(visit)
+
+
+@router.post(
+    "/dispatch-reminders",
+    include_in_schema=False,
+    summary="Cron-triggered: notify buyer+seller ~1 hour before a confirmed visit"
+)
+def dispatch_visit_reminders(request: Request, db: Session = Depends(get_db)):
+    """
+    Called by an external scheduler (Render Cron Job), not a logged-in
+    user — authorized via a shared-secret header instead of a JWT.
+    CRON_SECRET defaults to empty, which makes this endpoint refuse every
+    request until a real secret is configured on the service.
+    """
+    provided_secret = request.headers.get("X-Cron-Secret")
+    if not settings.CRON_SECRET or provided_secret != settings.CRON_SECRET:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Forbidden.")
+
+    # Naive UTC, matching how requested_date is stored (see create_visit).
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
+    window_start = now + timedelta(minutes=55)
+    window_end = now + timedelta(minutes=65)
+
+    due_visits = (
+        db.query(Visit)
+        .filter(
+            Visit.status == "confirmed",
+            Visit.reminder_sent_at.is_(None),
+            Visit.requested_date >= window_start,
+            Visit.requested_date <= window_end,
+        )
+        .all()
+    )
+
+    for visit in due_visits:
+        notify(
+            db,
+            user_id=visit.buyer_id,
+            title="Visit reminder",
+            message=f"Your visit for \"{visit.property.title}\" is in about 1 hour.",
+            link="/dashboard/buyer/visits",
+        )
+        notify(
+            db,
+            user_id=visit.property.owner_id,
+            title="Visit reminder",
+            message=f"{visit.buyer.full_name}'s visit for \"{visit.property.title}\" is in about 1 hour.",
+            link="/dashboard/seller/visits",
+        )
+        visit.reminder_sent_at = now
+
+    db.commit()
+    return {"reminders_sent": len(due_visits)}

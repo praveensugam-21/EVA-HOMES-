@@ -16,7 +16,7 @@ from typing import Optional
 from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from sqlalchemy import func
 
@@ -27,7 +27,7 @@ from database import get_db
 from models.enquiry import Enquiry
 from models.offer import Offer
 from models.property import ListingType, ParkingType, Property, PropertyImage, PropertyStatus, PropertyType
-from models.property_unlock import PropertyUnlock, UnlockStatus
+from models.property_unlock import PropertyUnlock, UnlockStatus, UnlockType
 from models.user import User
 from models.visit import Visit
 from routers.auth import get_admin_user, get_current_user, get_current_user_optional, get_seller_or_admin_user, get_seller_user
@@ -63,11 +63,12 @@ def whatsapp_number(phone: str) -> str:
     return "".join(ch for ch in phone if ch.isdigit())
 
 
-def is_location_unlocked(db: Session, current_user: Optional[User], prop: Property) -> bool:
+def is_unlocked(db: Session, current_user: Optional[User], prop: Property, unlock_type: UnlockType) -> bool:
     """
-    True if the exact map location + owner's real phone should be shown:
-    the owner themselves, an admin, or a buyer with a verified (paid,
-    manually confirmed) PropertyUnlock for this specific listing.
+    True if the given unlock_type (phone or map) should be shown: the owner
+    themselves, an admin, or a buyer with a verified (paid, manually
+    confirmed) PropertyUnlock of that specific type for this listing. Phone
+    and map are independent — a buyer may hold one, both, or neither.
     """
     if not current_user:
         return False
@@ -79,6 +80,7 @@ def is_location_unlocked(db: Session, current_user: Optional[User], prop: Proper
         .filter(
             PropertyUnlock.user_id == current_user.id,
             PropertyUnlock.property_id == prop.id,
+            PropertyUnlock.unlock_type == unlock_type,
             PropertyUnlock.status == UnlockStatus.VERIFIED,
         )
         .first()
@@ -150,7 +152,8 @@ def list_properties(
         query = query.filter(
             Property.title.ilike(search_term) |
             Property.city.ilike(search_term) |
-            Property.locality.ilike(search_term)
+            Property.locality.ilike(search_term) |
+            Property.description.ilike(search_term)
         )
 
     # ---- COUNT TOTAL (before pagination) ----
@@ -228,7 +231,7 @@ def admin_list_properties(
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_admin_user),
 ):
-    query = db.query(Property)
+    query = db.query(Property).options(joinedload(Property.owner))
 
     if status_filter:
         query = query.filter(Property.status == status_filter)
@@ -396,16 +399,17 @@ def get_property_contact(
         f"?text={quote(message)}"
     )
 
-    unlocked = is_location_unlocked(db, current_user, prop)
+    unlocked = is_unlocked(db, current_user, prop, UnlockType.PHONE)
 
     return PropertyContactResponse(
         property_id=prop.id,
         owner_name=prop.owner.full_name if prop.owner else None,
         owner_phone_masked=mask_phone(prop.owner.phone if prop.owner else None),
-        location_unlocked=unlocked,
+        phone_unlocked=unlocked,
         owner_phone=(prop.owner.phone if unlocked and prop.owner else None),
         broker_name=broker_settings.broker_name,
         broker_phone=broker_settings.broker_phone,
+        broker_photo_url=broker_settings.photo_url,
         whatsapp_link=whatsapp_link,
     )
 
@@ -442,8 +446,8 @@ def get_property(
     response = PropertyResponse.model_validate(prop)
     response.owner_name = prop.owner.full_name if prop.owner else None
 
-    unlocked = is_location_unlocked(db, current_user, prop)
-    response.location_unlocked = unlocked
+    unlocked = is_unlocked(db, current_user, prop, UnlockType.MAP)
+    response.map_unlocked = unlocked
     if not unlocked:
         response.google_maps_link = None
 
@@ -705,7 +709,7 @@ async def upload_image(
 
     if is_supabase_enabled():
         try:
-            storage.upload_bytes(settings.SUPABASE_BUCKET_IMAGES, unique_filename, content, file.content_type)
+            await storage.upload_bytes(settings.SUPABASE_BUCKET_IMAGES, unique_filename, content, file.content_type)
         except storage.StorageError as e:
             raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(e))
         return {"url": storage.public_url(settings.SUPABASE_BUCKET_IMAGES, unique_filename)}

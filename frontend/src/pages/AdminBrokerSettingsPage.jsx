@@ -12,9 +12,11 @@ const initialForm = {
   broker_name: "",
   broker_phone: "",
   broker_whatsapp: "",
+  photo_url: "",
   payment_qr_image_url: "",
   payment_phone: "",
-  unlock_fee: "20",
+  phone_unlock_fee: "20",
+  map_unlock_fee: "30",
 };
 
 export default function AdminBrokerSettingsPage() {
@@ -23,6 +25,7 @@ export default function AdminBrokerSettingsPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [isUploadingQr, setIsUploadingQr] = useState(false);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
@@ -40,12 +43,14 @@ export default function AdminBrokerSettingsPage() {
           broker_name: data.broker_name,
           broker_phone: data.broker_phone,
           broker_whatsapp: data.broker_whatsapp,
+          photo_url: data.photo_url || "",
           payment_qr_image_url: data.payment_qr_image_url || "",
           payment_phone: data.payment_phone || "",
-          unlock_fee: String(data.unlock_fee ?? 20),
+          phone_unlock_fee: String(data.phone_unlock_fee ?? 20),
+          map_unlock_fee: String(data.map_unlock_fee ?? 30),
         });
       } catch (err) {
-        setError(getErrorMessage(err, "Failed to load broker settings."));
+        setError(getErrorMessage(err, "Failed to load agent settings."));
       } finally {
         setIsLoading(false);
       }
@@ -78,19 +83,22 @@ export default function AdminBrokerSettingsPage() {
     try {
       const updated = await settingsAPI.updateBrokerContact({
         ...formData,
-        unlock_fee: formData.unlock_fee ? parseFloat(formData.unlock_fee) : undefined,
+        phone_unlock_fee: formData.phone_unlock_fee ? parseFloat(formData.phone_unlock_fee) : undefined,
+        map_unlock_fee: formData.map_unlock_fee ? parseFloat(formData.map_unlock_fee) : undefined,
       });
       setFormData({
         broker_name: updated.broker_name,
         broker_phone: updated.broker_phone,
         broker_whatsapp: updated.broker_whatsapp,
+        photo_url: updated.photo_url || "",
         payment_qr_image_url: updated.payment_qr_image_url || "",
         payment_phone: updated.payment_phone || "",
-        unlock_fee: String(updated.unlock_fee ?? 20),
+        phone_unlock_fee: String(updated.phone_unlock_fee ?? 20),
+        map_unlock_fee: String(updated.map_unlock_fee ?? 30),
       });
-      setSuccess("Broker contact details updated successfully.");
+      setSuccess("Agent contact details updated successfully.");
     } catch (err) {
-      setError(getErrorMessage(err, "Failed to update broker contact details."));
+      setError(getErrorMessage(err, "Failed to update agent contact details."));
     } finally {
       setIsSaving(false);
     }
@@ -108,6 +116,21 @@ export default function AdminBrokerSettingsPage() {
       setError(getErrorMessage(err, "Failed to upload QR code image."));
     } finally {
       setIsUploadingQr(false);
+    }
+  };
+
+  const handlePhotoUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setIsUploadingPhoto(true);
+    setError("");
+    try {
+      const { url } = await propertiesAPI.uploadImage(file);
+      setFormData((prev) => ({ ...prev, photo_url: url }));
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to upload agent photo."));
+    } finally {
+      setIsUploadingPhoto(false);
     }
   };
 
@@ -145,11 +168,11 @@ export default function AdminBrokerSettingsPage() {
                 </div>
                 <div>
                   <p className="text-xs uppercase tracking-[0.18em] text-faint">Admin Settings</p>
-                  <h1 className="text-2xl font-bold tracking-tight">Broker Contact</h1>
+                  <h1 className="text-2xl font-bold tracking-tight">Agent Contact</h1>
                 </div>
               </div>
               <p className="mt-4 text-sm text-faint max-w-2xl">
-                Update the phone numbers shown on every property page for call and WhatsApp contact.
+                Update the photo and phone numbers shown on every property page for call and WhatsApp contact.
               </p>
             </div>
 
@@ -174,7 +197,7 @@ export default function AdminBrokerSettingsPage() {
 
                   <div className="grid md:grid-cols-2 gap-5">
                     <label className="block">
-                      <span className="block text-xs font-semibold text-muted mb-1.5">Broker Name</span>
+                      <span className="block text-xs font-semibold text-muted mb-1.5">Agent Name</span>
                       <input
                         type="text"
                         name="broker_name"
@@ -188,8 +211,30 @@ export default function AdminBrokerSettingsPage() {
                     <div className="rounded-lg border border-line bg-surface px-4 py-4">
                       <p className="text-xs font-semibold text-muted mb-2">Where this appears</p>
                       <p className="text-sm text-ink-soft leading-relaxed">
-                        Property detail pages, call button links, WhatsApp links, and broker contact API responses.
+                        Property detail pages, call button links, WhatsApp links, and agent contact API responses.
                       </p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <span className="block text-xs font-semibold text-muted mb-1.5">Agent Photo</span>
+                    <div className="flex items-center gap-4">
+                      {formData.photo_url ? (
+                        <img
+                          src={formData.photo_url}
+                          alt="Agent"
+                          className="w-16 h-16 rounded-lg object-cover border-2 border-ink"
+                        />
+                      ) : (
+                        <div className="w-16 h-16 rounded-lg bg-ink text-white flex items-center justify-center">
+                          <FaUserShield />
+                        </div>
+                      )}
+                      <label className="inline-flex items-center gap-2 border border-line hover:border-ink text-ink-soft text-sm font-semibold px-4 py-2.5 rounded-lg cursor-pointer transition">
+                        {isUploadingPhoto ? <FaSpinner className="animate-spin text-xs" /> : <FaUpload className="text-xs" />}
+                        {isUploadingPhoto ? "Uploading..." : formData.photo_url ? "Replace Photo" : "Upload Photo"}
+                        <input type="file" accept="image/*" onChange={handlePhotoUpload} className="hidden" disabled={isUploadingPhoto} />
+                      </label>
                     </div>
                   </div>
 
@@ -237,36 +282,50 @@ export default function AdminBrokerSettingsPage() {
                       <FaQrcode className="text-muted" /> Location &amp; Phone Unlock Payment
                     </h2>
                     <p className="text-sm text-muted mt-1 mb-5">
-                      Shown to buyers who want to unlock a listing's exact map location and the owner's real phone
-                      number. Payment is offline (UPI) — you verify it manually from the Payments admin page.
+                      Shown to buyers who want to unlock a listing's exact map location or the owner's real phone
+                      number — two independent, separately-priced unlocks. Payment is offline (UPI) — you verify it
+                      manually from the Payments admin page.
                     </p>
 
                     <div className="grid md:grid-cols-2 gap-5">
                       <label className="block">
-                        <span className="block text-xs font-semibold text-muted mb-1.5">Unlock Fee (₹)</span>
+                        <span className="block text-xs font-semibold text-muted mb-1.5">Phone Unlock Fee (₹)</span>
                         <input
                           type="number"
-                          name="unlock_fee"
+                          name="phone_unlock_fee"
                           min="0"
                           step="1"
-                          value={formData.unlock_fee}
+                          value={formData.phone_unlock_fee}
                           onChange={handleChange}
                           className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white"
                         />
                       </label>
 
                       <label className="block">
-                        <span className="block text-xs font-semibold text-muted mb-1.5">UPI Payment Phone Number</span>
+                        <span className="block text-xs font-semibold text-muted mb-1.5">Map Unlock Fee (₹)</span>
                         <input
-                          type="tel"
-                          name="payment_phone"
-                          value={formData.payment_phone}
+                          type="number"
+                          name="map_unlock_fee"
+                          min="0"
+                          step="1"
+                          value={formData.map_unlock_fee}
                           onChange={handleChange}
-                          placeholder="e.g. +919900612425"
                           className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white"
                         />
                       </label>
                     </div>
+
+                    <label className="block mt-5">
+                      <span className="block text-xs font-semibold text-muted mb-1.5">UPI Payment Phone Number</span>
+                      <input
+                        type="tel"
+                        name="payment_phone"
+                        value={formData.payment_phone}
+                        onChange={handleChange}
+                        placeholder="e.g. +919900612425"
+                        className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white"
+                      />
+                    </label>
 
                     <div className="mt-5">
                       <span className="block text-xs font-semibold text-muted mb-1.5">UPI QR Code Image</span>

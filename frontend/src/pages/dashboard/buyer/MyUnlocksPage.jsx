@@ -35,20 +35,26 @@ export default function MyUnlocksPage() {
       ) : (
         <div className="space-y-3">
           {items.map((item) => (
-            <article key={item.id} className="bg-white border-2 border-ink rounded-xl p-5 flex items-center gap-4">
+            <Link
+              key={item.id}
+              to={`/properties/${item.property_id}`}
+              className="bg-white border-2 border-ink rounded-xl p-5 flex items-center gap-4 hover:border-accent transition"
+            >
               {item.property_thumbnail_url && (
                 <img src={item.property_thumbnail_url} alt="" className="w-16 h-16 rounded-lg object-cover shrink-0" />
               )}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <Link to={`/properties/${item.property_id}`} className="font-semibold text-ink hover:underline">
-                    {item.property_title || "Property"}
-                  </Link>
+                  <span className="font-semibold text-ink">{item.property_title || "Property"}</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wider bg-surface text-ink-soft px-2 py-0.5 rounded">
+                    {item.unlock_type === "map" ? "Map" : "Phone"}
+                  </span>
                   <StatusBadge status={item.status} />
                 </div>
-                {item.payment_reference && (
-                  <p className="text-xs text-muted mt-1">Reference: {item.payment_reference}</p>
-                )}
+                <p className="text-xs text-muted mt-1">
+                  Paid ₹{item.amount_paid}
+                  {item.payment_reference && ` · Reference: ${item.payment_reference}`}
+                </p>
                 <p className="text-xs text-faint mt-1">
                   Requested {new Date(item.requested_at).toLocaleString()}
                   {item.reviewed_at && ` · Reviewed ${new Date(item.reviewed_at).toLocaleString()}`}
@@ -60,7 +66,7 @@ export default function MyUnlocksPage() {
                 )}
                 {item.status === "verified" && (
                   <p className="text-xs text-emerald-700 font-medium mt-1">
-                    Unlocked — exact location and owner's number are visible on this listing.
+                    Unlocked — {item.unlock_type === "map" ? "the exact location is" : "the owner's number is"} visible on this listing.
                   </p>
                 )}
                 {item.status === "rejected" && (
@@ -69,7 +75,7 @@ export default function MyUnlocksPage() {
                   </p>
                 )}
               </div>
-            </article>
+            </Link>
           ))}
         </div>
       )}

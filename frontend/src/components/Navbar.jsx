@@ -1,21 +1,33 @@
 import { useEffect, useState } from "react";
-import { FaHome, FaUser, FaBars, FaTimes } from "react-icons/fa";
+import { FaHome, FaUser, FaBars, FaTimes, FaBell } from "react-icons/fa";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { unlocksAPI } from "../api/api";
+import { authAPI, notificationsAPI, unlocksAPI } from "../api/api";
 
 export default function Navbar() {
   const { user, isLoggedIn, logout } = useAuth();
   const navigate = useNavigate();
   const [menuOpen, setMenuOpen] = useState(false);
   const [pendingUnlockCount, setPendingUnlockCount] = useState(0);
+  const [pendingSellerCount, setPendingSellerCount] = useState(0);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   useEffect(() => {
     if (!user?.is_admin) return;
     unlocksAPI.list({ status: "pending" })
       .then((data) => setPendingUnlockCount(data.pending_count ?? 0))
       .catch(() => {});
+    authAPI.listSellers({ status: "pending" })
+      .then((data) => setPendingSellerCount(data.total ?? 0))
+      .catch(() => {});
   }, [user]);
+
+  useEffect(() => {
+    if (!isLoggedIn) return;
+    notificationsAPI.list()
+      .then((data) => setUnreadNotifCount(data.unread_count ?? 0))
+      .catch(() => {});
+  }, [isLoggedIn]);
 
   const handleLogout = () => {
     logout();
@@ -61,6 +73,14 @@ export default function Navbar() {
                   <Link to="/admin/users" className="text-xs font-semibold text-white hover:text-accent-bright transition">
                     Users
                   </Link>
+                  <Link to="/admin/seller-verifications" className="relative text-xs font-semibold text-white hover:text-accent-bright transition">
+                    Sellers
+                    {pendingSellerCount > 0 && (
+                      <span className="absolute -top-2 -right-3.5 bg-red-600 text-white text-[9px] font-bold min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center">
+                        {pendingSellerCount}
+                      </span>
+                    )}
+                  </Link>
                   <Link to="/admin/listings" className="text-xs font-semibold text-white hover:text-accent-bright transition">
                     Listings
                   </Link>
@@ -76,20 +96,26 @@ export default function Navbar() {
                     )}
                   </Link>
                   <Link to="/admin/settings/broker-contact" className="text-xs font-semibold text-white hover:text-accent-bright transition">
-                    Broker Settings
+                    Agent Settings
                   </Link>
                 </>
               )}
-              {user?.has_seller_profile && !user?.is_admin && (
+              {user?.has_seller_profile && (
                 <Link to="/listings/create" className="text-xs font-semibold text-white border border-white/60 px-3.5 py-1.5 rounded-lg hover:bg-accent-bright hover:text-steel-dark hover:border-accent-bright transition">
                   + List Property
                 </Link>
               )}
-              {!user?.is_admin && (
-                <Link to="/dashboard/buyer" className="text-xs font-semibold text-white hover:text-accent-bright transition">
-                  Dashboard
-                </Link>
-              )}
+              <Link to="/dashboard/buyer" className="text-xs font-semibold text-white hover:text-accent-bright transition">
+                Dashboard
+              </Link>
+              <Link to="/dashboard/notifications" className="relative text-white hover:text-accent-bright transition" aria-label="Notifications">
+                <FaBell className="text-base" />
+                {unreadNotifCount > 0 && (
+                  <span className="absolute -top-2 -right-2.5 bg-red-600 text-white text-[9px] font-bold min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center">
+                    {unreadNotifCount}
+                  </span>
+                )}
+              </Link>
               <Link to="/dashboard/profile" className="flex items-center gap-2 text-white text-sm hover:text-accent-bright transition">
                 <div className="w-8 h-8 bg-steel-light/40 rounded-full flex items-center justify-center border border-white/40">
                   <FaUser className="text-cream text-xs" />
@@ -152,6 +178,18 @@ export default function Navbar() {
                       Users
                     </Link>
                     <Link
+                      to="/admin/seller-verifications"
+                      className="relative block text-center border border-line text-ink-soft py-2.5 rounded-lg text-sm font-medium"
+                      onClick={() => setMenuOpen(false)}
+                    >
+                      Sellers
+                      {pendingSellerCount > 0 && (
+                        <span className="absolute top-1 right-3 bg-red-600 text-white text-[9px] font-bold min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center">
+                          {pendingSellerCount}
+                        </span>
+                      )}
+                    </Link>
+                    <Link
                       to="/admin/listings"
                       className="block text-center border border-line text-ink-soft py-2.5 rounded-lg text-sm font-medium"
                       onClick={() => setMenuOpen(false)}
@@ -182,11 +220,11 @@ export default function Navbar() {
                       className="block text-center border border-line text-ink-soft py-2.5 rounded-lg text-sm font-medium"
                       onClick={() => setMenuOpen(false)}
                     >
-                      Broker Settings
+                      Agent Settings
                     </Link>
                   </>
                 )}
-                {user?.has_seller_profile && !user?.is_admin && (
+                {user?.has_seller_profile && (
                   <Link
                     to="/listings/create"
                     className="block text-center border border-accent text-accent py-2.5 rounded-lg text-sm font-medium"
@@ -195,15 +233,25 @@ export default function Navbar() {
                     + List Property
                   </Link>
                 )}
-                {!user?.is_admin && (
-                  <Link
-                    to="/dashboard/buyer"
-                    className="block text-center border border-line text-ink-soft py-2.5 rounded-lg text-sm font-medium"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    Dashboard
-                  </Link>
-                )}
+                <Link
+                  to="/dashboard/buyer"
+                  className="block text-center border border-line text-ink-soft py-2.5 rounded-lg text-sm font-medium"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Dashboard
+                </Link>
+                <Link
+                  to="/dashboard/notifications"
+                  className="relative block text-center border border-line text-ink-soft py-2.5 rounded-lg text-sm font-medium"
+                  onClick={() => setMenuOpen(false)}
+                >
+                  Notifications
+                  {unreadNotifCount > 0 && (
+                    <span className="absolute top-1 right-3 bg-red-600 text-white text-[9px] font-bold min-w-[16px] h-4 px-1 rounded-full flex items-center justify-center">
+                      {unreadNotifCount}
+                    </span>
+                  )}
+                </Link>
                 <Link
                   to="/dashboard/profile"
                   className="block text-center border border-line text-ink-soft py-2.5 rounded-lg text-sm font-medium"

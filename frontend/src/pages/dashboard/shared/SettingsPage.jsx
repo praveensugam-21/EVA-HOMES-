@@ -147,7 +147,7 @@ function HelpSection() {
   return (
     <div className="bg-white border-2 border-ink rounded-xl p-6 space-y-3 text-sm text-ink-soft">
       <h2 className="text-lg font-bold text-ink">Help &amp; Support</h2>
-      <p>Need help with your account or a listing? Reach out to the broker desk from any property page's contact panel.</p>
+      <p>Need help with your account or a listing? Reach out to the agent desk from any property page's contact panel.</p>
       <p>For account-specific issues (login problems, incorrect verification status), contact an administrator.</p>
     </div>
   );

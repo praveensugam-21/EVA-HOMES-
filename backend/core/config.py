@@ -33,9 +33,9 @@ class Settings(BaseSettings):
     APP_VERSION: str = "1.0.0"
     DEBUG: bool = True
 
-    # --- Broker Contact ---
-    # Public visitors see this broker contact instead of the owner's full phone.
-    BROKER_NAME: str = "EVA Homes Broker Desk"
+    # --- Agent Contact ---
+    # Public visitors see this agent contact instead of the owner's full phone.
+    BROKER_NAME: str = "EVA Homes Agent Desk"
     BROKER_PHONE: str = "+919900612425"
     BROKER_WHATSAPP: str = "+919900612425"
 
@@ -53,6 +53,13 @@ class Settings(BaseSettings):
     SUPABASE_SERVICE_KEY: str = ""
     SUPABASE_BUCKET_IMAGES: str = "property-images"
     SUPABASE_BUCKET_DOCS: str = "seller-documents"
+
+    # --- Scheduled jobs ---
+    # Shared-secret header (not a user JWT) that authorizes the external
+    # cron trigger for POST /api/visits/dispatch-reminders. Empty by
+    # default, which means that endpoint refuses every request until a
+    # real secret is configured — no accidental open endpoint.
+    CRON_SECRET: str = ""
 
     @field_validator("DEBUG", mode="before")
     @classmethod

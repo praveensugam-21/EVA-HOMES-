@@ -16,15 +16,16 @@ from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from core.notify import notify
 from core.rate_limit import rate_limiter
 from database import get_db
 from models.property import Property
-from models.property_unlock import PropertyUnlock, UnlockStatus
+from models.property_unlock import PropertyUnlock, UnlockStatus, UnlockType
 from models.user import User
 from routers.auth import get_admin_user, get_current_user
+from routers.settings import get_or_create_broker_settings
 from schemas.property_unlock import (
     UnlockAdminItem,
     UnlockAdminListResponse,
@@ -41,8 +42,10 @@ def _to_response(unlock: PropertyUnlock) -> UnlockResponse:
     return UnlockResponse(
         id=unlock.id,
         property_id=unlock.property_id,
+        unlock_type=unlock.unlock_type,
         status=unlock.status,
         payment_reference=unlock.payment_reference,
+        amount_paid=unlock.amount_paid,
         requested_at=unlock.requested_at,
         reviewed_at=unlock.reviewed_at,
         property_title=unlock.property.title if unlock.property else None,
@@ -54,7 +57,7 @@ def _to_response(unlock: PropertyUnlock) -> UnlockResponse:
     "/api/properties/{property_id}/unlock-request",
     response_model=UnlockResponse,
     status_code=status.HTTP_201_CREATED,
-    summary="Claim you've paid the unlock fee for a property (manual verification follows)"
+    summary="Claim you've paid the unlock fee (phone or map, priced independently) for a property"
 )
 def request_unlock(
     property_id: int,
@@ -62,12 +65,6 @@ def request_unlock(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    if current_user.is_admin:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin accounts manage the marketplace and don't need to unlock listings.",
-        )
-
     rate_limiter.check(f"unlock-request:{current_user.id}", limit=5, window_seconds=300)
 
     prop = db.query(Property).filter(Property.id == property_id).first()
@@ -77,9 +74,20 @@ def request_unlock(
     if prop.owner_id == current_user.id:
         raise HTTPException(status_code=400, detail="You already own this listing.")
 
+    broker_settings = get_or_create_broker_settings(db)
+    fee = (
+        broker_settings.phone_unlock_fee
+        if unlock_data.unlock_type == UnlockType.PHONE
+        else broker_settings.map_unlock_fee
+    )
+
     existing = (
         db.query(PropertyUnlock)
-        .filter(PropertyUnlock.user_id == current_user.id, PropertyUnlock.property_id == property_id)
+        .filter(
+            PropertyUnlock.user_id == current_user.id,
+            PropertyUnlock.property_id == property_id,
+            PropertyUnlock.unlock_type == unlock_data.unlock_type,
+        )
         .first()
     )
 
@@ -90,6 +98,7 @@ def request_unlock(
         # just update the reference rather than creating a duplicate row.
         existing.status = UnlockStatus.PENDING
         existing.payment_reference = unlock_data.payment_reference
+        existing.amount_paid = fee
         existing.reviewed_at = None
         existing.reviewed_by = None
         db.commit()
@@ -99,7 +108,9 @@ def request_unlock(
     unlock = PropertyUnlock(
         user_id=current_user.id,
         property_id=property_id,
+        unlock_type=unlock_data.unlock_type,
         payment_reference=unlock_data.payment_reference,
+        amount_paid=fee,
     )
     db.add(unlock)
     db.commit()
@@ -118,6 +129,7 @@ def list_my_unlocks(
 ):
     unlocks = (
         db.query(PropertyUnlock)
+        .options(joinedload(PropertyUnlock.property))
         .filter(PropertyUnlock.user_id == current_user.id)
         .order_by(PropertyUnlock.requested_at.desc())
         .all()
@@ -136,7 +148,11 @@ def list_unlocks(
     db: Session = Depends(get_db),
     current_admin: User = Depends(get_admin_user),
 ):
-    query = db.query(PropertyUnlock)
+    query = db.query(PropertyUnlock).options(
+        joinedload(PropertyUnlock.property),
+        joinedload(PropertyUnlock.user),
+        joinedload(PropertyUnlock.reviewer),
+    )
     if status_filter:
         query = query.filter(PropertyUnlock.status == status_filter)
 
@@ -153,6 +169,7 @@ def list_unlocks(
             buyer_name=u.user.full_name if u.user else None,
             buyer_email=u.user.email if u.user else None,
             buyer_phone=u.user.phone if u.user else None,
+            reviewed_by_name=u.reviewer.full_name if u.reviewer else None,
         )
         for u in unlocks
     ]
@@ -183,12 +200,12 @@ def review_unlock(
     unlock.reviewed_by = current_admin.id
     db.flush()
 
+    unlock_label = "map location" if unlock.unlock_type == UnlockType.MAP else "owner phone number"
     title = "Payment verified" if review.status == UnlockStatus.VERIFIED else "Payment could not be verified"
     message = (
-        f"Your unlock for \"{unlock.property.title}\" is confirmed — exact location and the owner's "
-        f"number are now visible on that listing."
+        f"Your {unlock_label} unlock for \"{unlock.property.title}\" is confirmed."
         if review.status == UnlockStatus.VERIFIED
-        else f"We couldn't verify your payment for \"{unlock.property.title}\". Please try again or contact support."
+        else f"We couldn't verify your {unlock_label} payment for \"{unlock.property.title}\". Please try again or contact support."
     )
     notify(db, user_id=unlock.user_id, title=title, message=message, link=f"/properties/{unlock.property_id}")
 

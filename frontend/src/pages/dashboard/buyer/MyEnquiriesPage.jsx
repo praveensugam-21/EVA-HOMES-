@@ -57,7 +57,7 @@ export default function MyEnquiriesPage() {
 
               {item.notes && item.notes.length > 0 && (
                 <div className="mt-4 pt-4 border-t border-line-soft space-y-2">
-                  <p className="text-xs font-semibold text-muted uppercase tracking-wider">Replies from the broker desk</p>
+                  <p className="text-xs font-semibold text-muted uppercase tracking-wider">Replies from the agent desk</p>
                   {item.notes.map((note) => (
                     <div key={note.id} className="rounded-lg bg-surface border border-line-soft px-3 py-2">
                       <p className="text-sm text-ink whitespace-pre-line">{note.text}</p>

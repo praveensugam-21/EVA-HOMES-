@@ -24,19 +24,29 @@ export default function Hero() {
 
   return (
     <section className="relative min-h-[85vh] bg-cream flex items-center justify-center pt-24 pb-16 overflow-hidden">
-      <div className="hidden lg:block absolute inset-0 z-0 pointer-events-none" aria-hidden="true">
+      {/* opacity, not `hidden`/display:none — browser zoom shrinks the
+          effective CSS viewport width, and a hard display:none breakpoint
+          made this graphic disappear abruptly at common zoom levels.
+          Fading via opacity below the breakpoint keeps the transition
+          smooth instead of an instant snap, and the min-width is a bit
+          lower than the old lg: (1024px) so normal desktop zoom is less
+          likely to cross it at all. */}
+      <div
+        className="absolute inset-0 z-0 pointer-events-none opacity-0 min-[900px]:opacity-100 transition-opacity duration-300"
+        aria-hidden="true"
+      >
         <Suspense fallback={null}>
           <HeroScene />
         </Suspense>
       </div>
       <div className="relative z-10 w-full max-w-5xl px-6 text-center">
         <span className="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-[0.14em] text-accent bg-accent-soft px-3 py-1.5 rounded-full mb-6">
-          Verified listings · Broker-assisted deals
+          Verified listings · Agent-assisted deals
         </span>
         <h1 className="relative block w-fit mx-auto font-script text-accent text-5xl md:text-6xl lg:text-7xl font-semibold tracking-tight leading-[1.05] lg:whitespace-nowrap">
           Find your next home.
           <span
-            className="hidden lg:block absolute -top-10 right-0 w-20 h-20 pointer-events-none"
+            className="absolute -top-10 right-0 w-20 h-20 pointer-events-none opacity-0 min-[900px]:opacity-100 transition-opacity duration-300"
             aria-hidden="true"
           >
             <Suspense fallback={null}>

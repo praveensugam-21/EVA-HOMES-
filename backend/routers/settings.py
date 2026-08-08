@@ -62,12 +62,16 @@ def update_broker_contact(
     broker_settings.broker_phone = broker_data.broker_phone
     broker_settings.broker_whatsapp = broker_data.broker_whatsapp
 
+    if broker_data.photo_url is not None:
+        broker_settings.photo_url = broker_data.photo_url
     if broker_data.payment_qr_image_url is not None:
         broker_settings.payment_qr_image_url = broker_data.payment_qr_image_url
     if broker_data.payment_phone is not None:
         broker_settings.payment_phone = broker_data.payment_phone
-    if broker_data.unlock_fee is not None:
-        broker_settings.unlock_fee = broker_data.unlock_fee
+    if broker_data.phone_unlock_fee is not None:
+        broker_settings.phone_unlock_fee = broker_data.phone_unlock_fee
+    if broker_data.map_unlock_fee is not None:
+        broker_settings.map_unlock_fee = broker_data.map_unlock_fee
 
     db.commit()
     db.refresh(broker_settings)

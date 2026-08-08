@@ -17,10 +17,15 @@ class Visit(Base):
     id = Column(Integer, primary_key=True, index=True)
     property_id = Column(Integer, ForeignKey("properties.id", ondelete="CASCADE"), nullable=False, index=True)
     buyer_id = Column(Integer, ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    # Nullable: visits booked before the slot system existed have no slot.
+    slot_id = Column(Integer, ForeignKey("availability_slots.id", ondelete="SET NULL"), nullable=True, index=True)
 
     requested_date = Column(DateTime, nullable=False)
     message = Column(Text, nullable=True)
     status = Column(String(20), nullable=False, default="pending")
+    # Stamped once the "1 hour before" reminder has fired, so the dispatch
+    # job never double-notifies for the same visit.
+    reminder_sent_at = Column(DateTime, nullable=True)
 
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     updated_at = Column(
@@ -31,3 +36,4 @@ class Visit(Base):
 
     property = relationship("Property")
     buyer = relationship("User")
+    slot = relationship("AvailabilitySlot")

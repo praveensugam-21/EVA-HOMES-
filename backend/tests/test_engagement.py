@@ -11,6 +11,22 @@ def create_listing(client):
     return seller_headers, prop
 
 
+def book_visit(client, seller_headers, buyer_headers, prop, day_offset=1):
+    """Seller opens a slot, buyer books it — the current /api/visits flow."""
+    slot_date = (datetime.now(timezone.utc) + timedelta(days=day_offset)).date().isoformat()
+    slot = client.post(
+        "/api/sellers/me/availability-slots",
+        headers=seller_headers,
+        json={
+            "property_id": prop["id"],
+            "specific_date": slot_date,
+            "start_time": "10:00",
+            "end_time": "11:00",
+        },
+    ).json()
+    return client.post("/api/visits", headers=buyer_headers, json={"slot_id": slot["id"]})
+
+
 def test_enquiry_submission_is_public_and_shows_in_buyers_dashboard(client):
     _, prop = create_listing(client)
     buyer_headers = register_and_login(client, "enquirer@example.com")
@@ -36,14 +52,7 @@ def test_visit_request_buyer_can_only_cancel(client):
     seller_headers, prop = create_listing(client)
     buyer_headers = register_and_login(client, "visitor@example.com")
 
-    resp = client.post(
-        "/api/visits",
-        headers=buyer_headers,
-        json={
-            "property_id": prop["id"],
-            "requested_date": (datetime.now(timezone.utc) + timedelta(days=2)).isoformat(),
-        },
-    )
+    resp = book_visit(client, seller_headers, buyer_headers, prop, day_offset=2)
     assert resp.status_code == 201, resp.text
     visit_id = resp.json()["id"]
 
@@ -57,14 +66,7 @@ def test_visit_request_buyer_can_only_cancel(client):
     assert resp.json()["status"] == "cancelled"
 
     # The seller can confirm/reject on their own properties.
-    resp = client.post(
-        "/api/visits",
-        headers=buyer_headers,
-        json={
-            "property_id": prop["id"],
-            "requested_date": (datetime.now(timezone.utc) + timedelta(days=3)).isoformat(),
-        },
-    )
+    resp = book_visit(client, seller_headers, buyer_headers, prop, day_offset=3)
     second_visit_id = resp.json()["id"]
     resp = client.put(f"/api/visits/{second_visit_id}", headers=seller_headers, json={"status": "confirmed"})
     assert resp.status_code == 200
@@ -92,16 +94,9 @@ def test_offer_buyer_can_only_withdraw(client):
 
 
 def test_stranger_cannot_see_or_update_someone_elses_visit(client):
-    _, prop = create_listing(client)
+    seller_headers, prop = create_listing(client)
     buyer_headers = register_and_login(client, "realbuyer@example.com")
-    resp = client.post(
-        "/api/visits",
-        headers=buyer_headers,
-        json={
-            "property_id": prop["id"],
-            "requested_date": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
-        },
-    )
+    resp = book_visit(client, seller_headers, buyer_headers, prop, day_offset=1)
     visit_id = resp.json()["id"]
 
     stranger_headers = register_and_login(client, "stranger@example.com")

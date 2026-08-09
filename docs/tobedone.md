@@ -1,57 +1,50 @@
 # To Be Done — Deploy Readiness
 
-What's already working, what's missing before a real production deploy, and the exact steps to get there, in order.
+What's already working, what's missing, and the exact steps to get there, in order. **The app is live and deployed** (Render backend + Vercel frontend + Supabase Postgres/Storage) — this doc now tracks remaining gaps, not a pre-launch checklist.
 
 ---
 
-## ✅ Done — working right now, locally
+## ✅ Done — live in production
 
-- [x] Backend (FastAPI) + Frontend (Vite/React) run and pass all 15 pytest tests
+- [x] Backend (FastAPI, Render) + Frontend (Vite/React, Vercel) deployed and live
+- [x] **Postgres database provisioned** (Supabase) — `DATABASE_URL` set on Render, data persists across deploys/restarts
+- [x] **Durable file storage** (Supabase Storage) — `STORAGE_BACKEND=supabase`, property images and seller documents survive restarts
+- [x] `ALLOWED_ORIGINS` set to the real Vercel frontend domain
+- [x] Google OAuth Client ID's Authorized JavaScript origins include the real production domain — Google Sign-In confirmed working live
 - [x] Auth: JWT login + Google Sign-In (on both Login and Register pages)
-- [x] Alembic migrations wired in (3 revisions applied: baseline, parking_type + unlocks + payment settings, lat/lng columns)
-- [x] CI: GitHub Actions runs the test suite on every push/PR to `main`
+- [x] Alembic migrations wired in and applied on every Render deploy automatically
+- [x] CI: GitHub Actions runs the test suite on every push/PR to `main` (16/16 passing)
 - [x] Security pass: `SECRET_KEY` rotated, `.env`/`.db` untracked from git, CORS wildcard removed, OTP endpoints rate-limited, auto-seed gated behind `DEBUG`/`SEED_DB`
+- [x] **Full security headers on both deploys** — Strict-Transport-Security, CSP, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy (`frontend/vercel.json` for the real product surface, `backend/main.py` for the API/docs surface)
+- [x] **Foreign keys have real `ON DELETE` behavior** — deleting a user or property used to fail with a `ForeignKeyViolation` on Postgres the moment it had any related row; every FK across the schema now cascades (or `SET NULL` where appropriate) correctly
 - [x] Moderation-bypass bug fixed — sellers can no longer self-approve their own listings
-- [x] Admin accounts can no longer act as a buyer/seller (can't enquire, visit, offer, save, list, or hold a seller profile) — enforced server-side, not just hidden UI
-- [x] Broker replies reach the buyer's dashboard + trigger an in-app notification
-- [x] Paid location/owner-phone unlock feature (offline UPI payment, manual admin verification) — rate-limited, with an admin pending-count badge
+- [x] **Admin can now also be a buyer/seller** (deliberate policy change, see `CHANGELOG.md` 2026-08-08) — self-approval on an admin's own listings is allowed by design now, not a bug
+- [x] Agent (formerly "broker") replies reach the buyer's dashboard + trigger an in-app notification; sellers can now reply too, not just admin
+- [x] **Notification bell + unread badge** in the Navbar — previously unread count only showed as text on the Notifications page itself
+- [x] Paid location/owner-phone unlock feature — **now two independent, separately-priced unlocks** (phone ₹20, map ₹30 by default), payment reference mandatory, admin-verified
 - [x] Free GPS map picker (Leaflet + OpenStreetMap, no API key/billing) for exact property location, with reverse-geocoded address display
-- [x] Multi-photo uploads per room, capped at 5MB/file and 10 photos/room (enforced server-side, not just the UI)
+- [x] Multi-photo uploads per room, capped at 5MB/file and 10 photos/room (enforced server-side, not just the UI) — now uploads asynchronously, fixed a real event-loop-blocking bug
 - [x] Parking is a real `open`/`closed`/`none` type, not a boolean
+- [x] **Seller verification has its own admin page** (`/admin/seller-verifications`), Verify/Reject buttons correctly disable once a decision is made, Government ID is now a mandatory document
+- [x] **Visit availability slots + automated 1-hour-before reminder** — sellers set specific-date visit slots, buyers book against one, a Render Cron Job dispatches reminders every 10 minutes
+- [x] **N+1 queries fixed** across every admin/dashboard list endpoint; **frontend code-split** by route (main JS bundle down ~19% gzipped, dashboard pages load on demand)
 - [x] Docs reorganized into `docs/`, `CHANGELOG.md` kept up to date
 
-## ❌ Missing — blocks a real production deploy
+## ❌ Still missing — real gaps, not launch blockers
 
-- [ ] **No persistent database** — `DATABASE_URL` isn't set on Render, so it falls back to SQLite, which resets on every deploy/restart
-- [ ] **No durable file storage** — property images and seller documents live on local disk, lost on every Render/Vercel restart
 - [ ] **No real email/SMS delivery** — OTP codes and notifications are in-app/DB only, nothing is actually sent
 - [ ] **No forgot-password flow** — there's genuinely no way for a user to recover access if they forget their password (matters more now that Google-only accounts have an unusable random password with zero recovery path)
-- [ ] **`ALLOWED_ORIGINS`** only allows `localhost` right now — needs the real frontend domain
-- [ ] **Google OAuth Client ID** only allows `localhost` as an Authorized JavaScript origin
 - [ ] **In-memory rate limiter** — fine for one backend instance, won't hold if it ever scales to multiple workers
+- [ ] **No app UI for hard-deleting a user account** — deliberate (see `CHANGELOG.md`/session notes); deletion is a direct Supabase action only, never exposed as a button in the app
 
-## 🚀 Deploy steps, in order
+## ⏳ After launch — do when ready, not urgent
 
-1. **Create a Postgres database** — Render Postgres or Supabase, either works
-2. **Copy its connection string**
-3. In the **Render dashboard**, set env vars: `DATABASE_URL` (from step 2), `ALLOWED_ORIGINS` (your real frontend URL, once known)
-4. **Push this repo to GitHub** (if it isn't already)
-5. **Connect Render to the repo** — `render.yaml` already defines the backend service
-6. Render's build step runs `pip install -r requirements.txt && alembic upgrade head` automatically — this creates every table on the fresh Postgres database
-7. **Deploy the frontend** (Vercel or similar), set `VITE_API_BASE_URL` to your live Render backend URL
-8. Add the frontend's real domain to **both**:
-   - Render's `ALLOWED_ORIGINS`
-   - Google Cloud Console's OAuth Client ID → Authorized JavaScript origins
-9. **Smoke test on the live URLs**: register → login → create a listing → admin approves it → confirm it shows up publicly; also test the location-unlock flow end to end (request → admin verify → buyer sees unlocked data)
-
-## ⏳ After launch — not blockers, do when ready
-
-- [ ] Move uploads to S3 / Cloudinary / R2
 - [ ] Wire a real email provider (Resend / SES) for OTP + notifications
 - [ ] Wire an SMS provider (Twilio / MSG91) if phone OTP is wanted
 - [ ] Move rate limiting to Redis if traffic ever grows beyond a single backend instance
-- [ ] Use the new `latitude`/`longitude` columns (populated by the map picker but not read by anything yet) for a real "properties near me" radius search
+- [ ] Use the `latitude`/`longitude` columns (populated by the map picker but not read by anything yet) for a real "properties near me" radius search
 - [ ] Group multi-photo room galleries visually on the public listing beyond the numbered labels ("Kitchen 1/3") already in place
+- [ ] The "Assistant to help you" paid-concierge feature raised by the platform owner — deliberately deferred, not yet defined
 
 ---
 

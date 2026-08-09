@@ -1,8 +1,8 @@
 # EVA Homes
 
-EVA Homes is a full-stack, broker-mediated real estate marketplace — buyers browse and enquire, sellers list and manage properties, and every buyer-seller contact is routed through a broker layer rather than direct.
+EVA Homes is a full-stack, agent-mediated real estate marketplace — buyers browse and enquire, sellers list and manage properties, and every buyer-seller contact is routed through an agent/broker layer rather than direct.
 
-The project is split into a React frontend and a FastAPI backend.
+The project is split into a React frontend and a FastAPI backend, deployed on Vercel + Render + Supabase.
 
 ## Tech Stack
 
@@ -44,19 +44,21 @@ eva-homes/
       security.py               Password hashing, JWT
       notify.py                  In-app notification helper
       rate_limit.py               Per-IP in-memory rate limiter
-    models/                    SQLAlchemy tables, incl. property_unlock.py
-    routers/                   API endpoints, one file per domain, incl. unlocks.py
+      storage.py                   Local disk / Supabase Storage abstraction (async upload)
+    models/                    SQLAlchemy tables, incl. property_unlock.py, availability_slot.py
+    routers/                   API endpoints, one file per domain, incl. unlocks.py, availability.py
     schemas/                   Pydantic request/response models
     tests/                     pytest smoke suite
     static/
-      uploads/                 Property images (local disk, dev only)
-      seller_docs/             Seller verification documents (local disk, dev only)
+      uploads/                 Property images (local disk, dev only — Supabase Storage in prod)
+      seller_docs/             Seller verification documents (same)
 
   frontend/
     index.html
     package.json
     vite.config.js
     eslint.config.js
+    vercel.json                Rewrites + security headers (CSP, HSTS, etc.)
     .env.example
     public/
     src/
@@ -69,38 +71,41 @@ eva-homes/
       pages/
         dashboard/
           buyer/                 Buyer dashboard pages, incl. My Unlocks
-          seller/                 Seller dashboard pages
+          seller/                 Seller dashboard pages, incl. availability slots
           shared/                 Notifications, Settings
-        Admin*.jsx                Admin workspace pages, incl. Payment Verifications
+        Admin*.jsx                Admin workspace pages, incl. Payment Verifications,
+                                  Seller Verifications
         *Page.jsx                 Public pages (Home, Listings, PropertyDetail, Login, Register, ...)
+                                  — every route except Home is React.lazy()-loaded
 ```
 
 ## Features
 
 **Public / visitor**
 - Browse and filter property listings (city, type, price, bedrooms, keywords)
-- View property details, photo galleries, and a broker-masked contact panel
+- View property details, photo galleries, and an agent-masked contact panel (with the agent's photo, if set)
 - Submit an enquiry without logging in
 
 **Buyer**
 - Register/login with email+password or Google Sign-In
 - Save properties to a shortlist
-- Submit enquiries, request visits, make offers — and track all three from a dashboard
-- Receive in-app replies/notifications when a broker responds or a seller acts on a visit/offer
-- Pay a one-time fee (offline UPI, admin-verified) to unlock a listing's exact map location and the owner's real phone number — tracked on a **My Unlocks** page
+- Submit enquiries, request visits (against a seller's specific-date availability slots), make offers — and track all three from a dashboard
+- In-app **notification bell** (Navbar, with unread badge) — notified when an agent/seller replies, a visit/offer status changes, or a booked visit is coming up in about an hour
+- Pay a one-time fee (offline UPI, admin-verified) to unlock a listing's exact map location (₹30 default) and/or the owner's real phone number (₹20 default) — two independent unlocks, tracked with amount paid on a **My Unlocks** page
 
-**Seller** (opt-in on any buyer account)
-- Activate a seller profile and submit verification documents
+**Seller** (opt-in on any buyer account — admin accounts can opt in too)
+- Activate a seller profile and submit verification documents (Government ID is mandatory before review)
 - Create and manage listings (each starts `pending` until admin approval), with a free GPS map picker for the exact location and multiple photos per room
+- Set specific-date visit availability slots per property; reply to buyer enquiries directly (not just admin)
 - View per-listing analytics, respond to enquiries/visits/offers
 
-**Admin** (manages the marketplace — cannot buy, sell, enquire, or hold a seller profile themselves)
-- Approve/reject seller verification
+**Admin** (manages the marketplace; can additionally opt into buying/selling like any other account)
+- Approve/reject seller verification from a dedicated **Seller Verifications** page
 - Moderate listings (approve, reject, feature, verify)
 - Manage all enquiries site-wide, reply directly to buyers (shows on their dashboard + notification)
 - Verify/reject location-unlock payment claims (Navbar shows a live pending-count badge)
 - Manage user accounts (activate/deactivate, promote/demote admin), paginated 20 at a time with full profile detail per user
-- Edit the site-wide broker contact details (name, phone, WhatsApp) and the location-unlock payment QR/phone/fee
+- Edit the site-wide agent contact details (name, phone, WhatsApp, photo) and the two location-unlock payment fees
 
 See `docs/PROJECT_GUIDE.md` for the full walkthrough of each workspace.
 
@@ -124,6 +129,7 @@ APP_NAME=EVA Homes API
 APP_VERSION=1.0.0
 DEBUG=True
 GOOGLE_CLIENT_ID=<optional — from Google Cloud Console, leave blank to disable Google Sign-In>
+CRON_SECRET=<shared secret for POST /api/visits/dispatch-reminders — leave blank locally, auto-generated on Render>
 ```
 
 Apply migrations, then run the server:
@@ -201,14 +207,17 @@ User:  priya@example.com / password123
 
 ## Image & Document Uploads
 
-Property images and seller verification documents are currently stored on local disk:
+Storage is pluggable via `STORAGE_BACKEND` (`core/storage.py`):
 
-```text
-backend/static/uploads/       property images
-backend/static/seller_docs/    seller verification documents
-```
+- **`local`** (default for dev) — saved to local disk:
+  ```text
+  backend/static/uploads/       property images
+  backend/static/seller_docs/    seller verification documents
+  ```
+  Works for local development but **does not survive a real cloud deploy** (Render/Vercel disks are ephemeral).
+- **`supabase`** (production) — uploaded to Supabase Storage buckets instead, durable across restarts. Requires `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`, `SUPABASE_BUCKET_IMAGES`, `SUPABASE_BUCKET_DOCS`. Uploads are async (`httpx.AsyncClient`) so a slow upload doesn't block other requests on the same worker.
 
-Uploads are capped at **5MB per file** (enforced server-side by streaming and counting bytes, not just trusted from the client) and **10 photos per room** on a listing. This works for local development but **does not survive a real cloud deploy** (Render/Vercel disks are ephemeral) — moving to S3/Cloudinary/R2 is a known follow-up, not yet done.
+Uploads are capped at **5MB per file** (enforced server-side by streaming and counting bytes, not just trusted from the client) and **10 photos per room** on a listing, regardless of backend.
 
 ## Notes For Developers
 

@@ -4,6 +4,66 @@ A running, plain-English summary of what changed and why — kept up to date aft
 
 ---
 
+## 2026-08-08 — Large feature/fix batch, security hardening, performance pass
+
+A big session covering a punch list of ~24 items the platform owner raised after using the live deployed site, plus a follow-up security header pass and a performance pass. Everything below was researched against the actual codebase before building (three parallel read-only research passes established ground truth for every item, and four genuinely ambiguous items were clarified directly rather than guessed) — see the plan file this session worked from for the full reasoning. Full pytest suite (16/16) and a clean production build were verified after every group, not just at the end.
+
+### Seller verification: dedicated admin page, real gating, mandatory documents
+- New page `AdminSellerVerificationsPage.jsx` (`/admin/seller-verifications`) — same queue pattern as Payment Verifications (status tabs, pending-first, document review, Verify/Reject). Backed by a new `GET /api/auth/sellers` endpoint (admin-only, filterable by status).
+- Verify/Reject buttons now only render when `seller_status` is `pending`/`unverified` — previously they stayed live even after a seller was already verified or rejected, with no backend transition guard either.
+- The old verification block was removed from `AdminUsersPage.jsx` entirely — that page is back to pure user management (active/inactive, promote/demote admin).
+- **Government ID is now genuinely mandatory**: uploading *any* document type used to be enough to move a seller into the `pending` review queue; now specifically an `id_proof` upload is required. Added a new `electricity_bill` document type option alongside the existing ID/address-proof/business-license ones.
+
+### Admin can also be a seller (and a buyer)
+- Every `is_admin` exclusion blocking an admin from activating a seller profile, listing properties, submitting enquiries, requesting visits, making offers, saving properties, or requesting a location/phone unlock has been removed (`routers/auth.py`, `unlocks.py`, `enquiries.py`, `visits.py`, `offers.py`, `saved_properties.py`).
+- **Deliberate decision**: an admin who also holds a seller profile can approve/verify/feature their own listings, same as any other admin action — no extra "a different admin must approve" guard. Confirmed directly with the platform owner before building, since this reopens the self-approval protection that was closed off in an earlier session (see the 2026-07-28 "night" entry below) — acceptable now that it's an explicit choice, not an oversight.
+- Frontend route guards (`SellerRoute` in `App.jsx`) and Navbar visibility rules updated to match — an admin with a seller profile now sees "+ List Property" and can reach the buyer dashboard.
+
+### Location unlock split into two independent, separately-priced unlocks
+- What used to be one combined "unlock this listing's map + phone" purchase is now two: **Phone number** (₹20 default) and **Map/location** (₹30 default), each its own `PropertyUnlock` row (`unlock_type` column, unique per user+property+type) with its own status and its own snapshotted `amount_paid` (so a later fee change doesn't retroactively rewrite historical records).
+- `payment_reference` is now **required** on an unlock request (was optional before) — the UI no longer hides it behind an "optional" toggle.
+- `BrokerSettings.unlock_fee` split into `phone_unlock_fee` / `map_unlock_fee`; admin's Broker (now Agent) Settings page has two fee fields instead of one.
+- **My Unlocks** now shows the amount paid and which type each row is, and the whole card is clickable through to the property (previously only the title text was — a real click-target bug).
+- Admin's Payment Verifications page now shows which admin reviewed/verified each already-decided request (`reviewed_by_name`, via the existing `PropertyUnlock.reviewer` relationship that wasn't being surfaced anywhere before).
+
+### Notifications: visible + complete
+- Added a notification bell + unread-count badge to the Navbar (desktop and mobile) — previously the only place unread count showed at all was as plain text on the Notifications page itself.
+- Three real actions that never notified anyone now do: submitting an enquiry notifies the property owner, admin approving/rejecting a listing notifies the owner, and admin verifying/rejecting a seller notifies that seller.
+
+### Enquiries: seller finally gets into the reply thread
+- Previously the reply thread (`EnquiryNote`) was buyer↔admin only — the seller who actually owns the property could see the raw enquiry and change its status, but never saw or could post replies. `POST /{enquiry_id}/notes` now also allows the property's owner, not just admin; `SellerEnquiriesPage.jsx` now renders the thread and has its own reply box, mirroring the admin page.
+- Submitting an enquiry now immediately creates an automatic acknowledgment note ("Thanks — we've received your enquiry...") so the buyer sees something in their thread right away instead of a wait with no feedback.
+- Clicking the WhatsApp contact button now also silently logs a `source: "whatsapp"` enquiry, so an anonymous WhatsApp contact attempt shows up in the seller/admin queue and can be followed up on even though the actual conversation happens outside the app.
+
+### Visit availability slots + automated 1-hour-before reminder
+The biggest single item in the batch — previously a buyer just typed any date/time freely and the seller confirmed or rejected it after the fact; there was zero scheduling infrastructure anywhere in the app.
+- New `AvailabilitySlot` model — **specific calendar dates, not recurring weekly slots** (an explicit correction mid-build: the first draft used recurring weekly availability, which was wrong). A seller adds one-off slots (date + start/end time) per property; a buyer books by claiming an unbooked one, which immediately flips `is_booked=True` so it drops out of the pool. A rejected/cancelled visit frees its slot back up.
+- New `routers/availability.py`: seller manages their own slots, buyers see a property's open slots publicly.
+- New `POST /api/visits/dispatch-reminders` — notifies both buyer and seller when a confirmed visit is ~1 hour out, guarded by `reminder_sent_at` so it can never double-fire. Authorized by a shared-secret header (`CRON_SECRET`), not a user JWT, since it's called by an external scheduler.
+- **Infra note**: Render's free web service spins down when idle, so an in-process scheduler would silently stop firing whenever the app was asleep — unreliable for a time-sensitive reminder. Added a `cron`-type service in `render.yaml` that pings the dispatch endpoint every 10 minutes independent of visitor traffic, with `CRON_SECRET` auto-generated and shared between the two services via Render's `fromService` env var reference.
+
+### "Broker" renamed to "Agent" throughout the user-facing UI
+Every user-visible string — nav links, the property contact panel, admin settings page, buyer/seller dashboard copy, error messages — now says "Agent" instead of "Broker" (e.g. "Contact Broker" → "Contact Agent", "Broker Settings" → "Agent Settings"). Internal variable/column/field names (`broker_name`, `routers/settings.py`, etc.) were deliberately left alone — renaming those would be pure churn with no user-facing benefit. `docs/BROKER_CONTACT_FLOW.md` keeps its filename (cross-referenced from several other docs) but its content now uses "agent" language throughout.
+
+### Agent contact photo
+`BrokerSettings.photo_url` (new column) — admin can upload a photo from the Agent Settings page, shown on the property contact panel in place of the generic shield icon once set. Degrades gracefully (icon badge) when unset.
+
+### Standalone fixes
+- **Home page hero graphic disappearing at some browser zoom levels** — was a hard `hidden lg:block` breakpoint toggle; browser zoom shifts the effective CSS viewport width, so it could vanish abruptly. Replaced with an opacity transition at a lower breakpoint, so it fades rather than snaps.
+- **Search**: added the `property_type` filter to the Listings page UI (backend already supported it, just wasn't exposed).
+- **Buyer's Offers page didn't show the property owner's name** — added `owner_name` to `OfferResponse`, mirroring how the seller's Offers page already showed the buyer's name.
+- **Uploads were slow under any concurrent traffic**: `core/storage.py`'s Supabase upload used a blocking `httpx.post(...)` inside an `async def` route handler — this stalled the *entire* Uvicorn worker's event loop for the duration of every upload (hundreds of ms to seconds), not just the uploader's own request. Switched to `httpx.AsyncClient` with `await`.
+
+### Performance: N+1 queries and frontend bundle size
+- Audited every list-returning endpoint that accesses a relationship per row without eager loading — offers, visits, unlocks (buyer + admin), enquiries (all three variants, including the notes thread), availability slots, admin users/sellers, and admin's property listings (`prop.owner.full_name` was the worst offender: one extra query per listing on that page). Added `joinedload`/`selectinload`/`contains_eager` throughout `routers/*.py`.
+- Converted every frontend route except Home to `React.lazy()` + a `Suspense` boundary (`App.jsx`) — a visitor browsing public pages no longer downloads the entire admin/seller/buyer dashboard bundle upfront. Verified via production build: main JS bundle dropped from 430 KB → 350 KB gzipped, and every dashboard page now ships as its own small on-demand chunk (1–14 KB each).
+
+### Security headers
+- **`frontend/vercel.json`** (previously had zero security headers — this is what actually protects real visitors, since Vercel serves the HTML/JS they load, not the backend) now sets Strict-Transport-Security, X-Frame-Options, X-Content-Type-Options, Referrer-Policy, Permissions-Policy, and a Content-Security-Policy built from an exhaustive audit of every external domain the frontend actually loads (Google Fonts, Google Sign-In, Leaflet/OpenStreetMap tiles + Nominatim geocoding, the Google Maps embed, Supabase-hosted images) — confirmed via grep that nothing in the codebase needs `'unsafe-inline'` for scripts, so it's deliberately excluded there.
+- **`backend/main.py`**'s existing security-headers middleware gained the two headers it was missing (Referrer-Policy, Permissions-Policy) and dropped the deprecated `X-XSS-Protection`. While rebuilding its CSP, found and fixed a **pre-existing bug**: the old policy didn't allow `cdn.jsdelivr.net`, which is exactly where FastAPI's built-in `/docs` (Swagger UI) and `/redoc` load their JS/CSS from (confirmed directly against the installed `fastapi` package's source) — meaning the docs pages were likely silently broken under the old CSP. Fixed.
+
+---
+
 ## 2026-07-29 — Phone number now required to list a property
 
 Found during a project re-analysis: `User.phone` was optional everywhere, and nothing stopped a seller from creating a listing without ever setting one. That's a real problem given the paid location/phone-unlock feature — a buyer paying ₹20 specifically for the owner's real phone number would get `null` if the seller never provided one.

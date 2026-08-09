@@ -167,3 +167,84 @@ Confirmed via the dev server's console output that the "nested form" warning sto
 
 ### Prevention
 Before adding a `<form>` inside a reusable component, check whether it might ever be rendered inside a page that's already one big form (common in this codebase — several pages wrap the whole form in a single `<form>` tag). If so, use button `onClick` + `onKeyDown` instead of a nested `<form onSubmit>`.
+
+---
+
+## Error #5
+
+### Date
+2026-08-02
+
+### Error
+`psycopg2.errors.ForeignKeyViolation: update or delete on table "users" violates foreign key constraint "properties_owner_id_fkey" DETAIL: Key (id)=(2) is still referenced from table "properties".`
+
+Same failure shape on `DELETE /api/properties/{id}` too, whenever the listing had any enquiry/visit/offer/saved-property/unlock pointing at it.
+
+### Root Cause
+Every foreign key in the original schema (`Property.owner_id`, `Enquiry.property_id`, `Visit.buyer_id`, `SavedProperty.property_id`, etc. — every FK across the whole app) was created via a plain SQLAlchemy `ForeignKey("table.id")` with no `ondelete=` behavior, which defaults to `RESTRICT` on Postgres. SQLite never enforces foreign keys at all in this app (no `PRAGMA foreign_keys=ON` anywhere), so this was completely invisible in local dev — every delete "worked" locally and only broke against the real production Postgres database on Supabase.
+
+### Explanation
+SQLAlchemy's `cascade="all, delete-orphan"` on a Python-level `relationship()` only handles cascading when SQLAlchemy itself issues the delete through the ORM — it does nothing for the actual database-level constraint. That matters because deletes don't only happen through the app: an admin deleting a row directly in Supabase's Table Editor (or any raw SQL) hits the real Postgres constraint with no ORM involved at all, and a `RESTRICT` FK will refuse the delete outright rather than cascading.
+
+### Solution
+Added a new Alembic migration that drops and recreates every affected FK constraint with explicit `ON DELETE` behavior — `CASCADE` for genuinely dependent data (a property's images, enquiries, visits, offers, unlocks; a user's properties, saved-properties, notifications, seller profile), and `SET NULL` for the one case where cascading would be wrong (`PropertyUnlock.reviewed_by` — deleting the admin who happened to review a request shouldn't destroy the buyer's own unlock record, since that's the buyer's data, not the admin's):
+
+```python
+op.drop_constraint("properties_owner_id_fkey", "properties", type_="foreignkey")
+op.create_foreign_key(
+    "properties_owner_id_fkey", "properties", "users", ["owner_id"], ["id"], ondelete="CASCADE"
+)
+```
+
+The migration is guarded to only run on Postgres (`if bind.dialect.name != "postgresql": return`) since SQLite has nothing to fix here and doesn't support `DROP CONSTRAINT` the same way.
+
+### Commands Used
+```powershell
+alembic revision -m "add ondelete cascade to foreign keys"
+alembic upgrade head
+```
+```sql
+-- verification, run directly in Supabase's SQL Editor
+SELECT conname, confdeltype FROM pg_constraint WHERE conname = 'properties_owner_id_fkey';
+-- 'a' (no action) before the fix, 'c' (cascade) after
+```
+
+### Verification
+Deployed the migration, re-ran the SQL check above and confirmed `confdeltype` flipped from `a` to `c`, then successfully deleted a user with dependent properties/enquiries directly in Supabase and confirmed everything cascaded cleanly with no error.
+
+### Prevention
+Any `ForeignKey(...)` should have an explicit `ondelete=` from the start, decided deliberately (`CASCADE` for owned/dependent data, `SET NULL` for provenance/attribution fields, `RESTRICT` only when you genuinely want the delete blocked) — not left to the database default. And because SQLite silently doesn't enforce FKs at all in this app, **this entire category of bug is invisible in local dev** — it only ever surfaces against the real Postgres database, so it has to be reasoned about explicitly rather than caught by testing locally.
+
+---
+
+## Error #6
+
+### Date
+2026-08-05 to 2026-08-06
+
+### Error
+A chain of different-looking failures while trying to make Google Sign-In more robust against popup blockers: `[GSI_LOGGER]: Failed to open popup window`, then (after switching to `ux_mode: "redirect"`) `Error 400: redirect_uri_mismatch`, then `Error 400: invalid_request` / "doesn't comply with Google's OAuth 2.0 policy for keeping apps secure."
+
+### Root Cause (the approach itself, not a single line of code)
+The original popup-based Google Sign-In was blocked by a browser extension on one specific machine — confirmed harmless (worked fine in Incognito, i.e. it was never actually broken for real visitors). The fix attempted was switching to Google Identity Services' `ux_mode: "redirect"`, which avoids `window.open()` entirely. That introduced a real, self-inflicted bug: GIS's documented CSRF protection for redirect mode (a `g_csrf_token` cookie + matching form field) only works when the page rendering the button and the `login_uri` receiving the callback **share an origin** — the cookie is set by client-side JS on the button's page, so it can never reach a `login_uri` on a different domain. This app's frontend (Vercel) and backend (Render) are deliberately on different domains, so that check was rejecting every request, real or fake, unconditionally.
+
+### Explanation
+Each symptom in the chain had a distinct, real cause layered on top of the fundamental architecture mismatch above:
+- `redirect_uri_mismatch` — the exact URI GIS sent had to be registered byte-for-byte in Google Cloud Console's *Authorized redirect URIs* (a separate list from *Authorized JavaScript origins*), and the first attempt used the wrong backend domain entirely (`eva-homes.onrender.com`, a domain belonging to an unrelated Render user, instead of the project's actual `eva-homes-backend.onrender.com`).
+- `invalid_request` / "OAuth 2.0 policy for keeping apps secure" — Google's own project dashboard "Use secure flows" checkup item flagged the underlying implicit-token grant `ux_mode: redirect` uses as a legacy/insecure pattern Google now restricts at the platform level — not something fixable by further Console configuration.
+
+### Solution
+**Reverted to the original popup-based flow entirely** rather than continuing to fight the redirect-mode approach — removed the new `/api/auth/google/callback` endpoint, the `FRONTEND_URL` setting, the frontend `GoogleCallbackPage`, and the `ux_mode`/`login_uri` wiring, restoring the simple `callback:` popup handler. This is Google's own officially-supported method for GIS and works for the overwhelming majority of visitors; the one machine that hit it was an edge case, not a systemic problem.
+
+### Commands Used
+```powershell
+alembic downgrade -1   # unrelated migration testing during the same session, included for context
+git log --oneline -5
+```
+Mostly iterative code edits + re-deploys + checking Render build logs and decoding Google's base64 `authError` query parameter (`base64.urlsafe_b64decode`) to see the exact rejected value instead of guessing from the generic error page.
+
+### Verification
+Confirmed the popup flow signs in successfully once tested in a browser session without the interfering extension (Incognito), matching its original working state before any of this began.
+
+### Prevention
+Before switching an auth flow's UX mode to work around a client-side annoyance, check whether the *provider's own documented security mechanism* (here, GIS's double-submit CSRF cookie) actually assumes an architecture the app has (same-origin frontend+backend) — if the app deliberately doesn't have that architecture (a split Vercel/Render deploy, in this case), the "more robust" alternative can be structurally broken from the start, not just harder to configure. When a provider's platform dashboard has a security/compliance checkup panel (Google Cloud Console's "Project checkup" did, here), check it early — it can reveal that an approach is blocked by policy before spending hours debugging Console configuration that was never going to fix it.

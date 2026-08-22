@@ -1,0 +1,344 @@
+import { useEffect, useState } from "react";
+import { FaCheckCircle, FaEnvelopeOpenText, FaFilter, FaPaperPlane, FaPhoneAlt, FaSearch, FaSpinner } from "react-icons/fa";
+import { Link, Navigate } from "react-router-dom";
+import Navbar from "../components/Navbar";
+import Footer from "../components/Footer";
+import { enquiriesAPI, getErrorMessage } from "../api/api";
+import { useAuth } from "../context/AuthContext";
+
+const initialFilters = {
+  status: "",
+  unreadOnly: false,
+  search: "",
+};
+
+export default function AdminEnquiriesPage() {
+  const { isLoggedIn, user } = useAuth();
+  const [filters, setFilters] = useState(initialFilters);
+  const [dashboard, setDashboard] = useState({ items: [], total: 0, unread_count: 0, new_count: 0 });
+  const [isLoading, setIsLoading] = useState(true);
+  const [activeId, setActiveId] = useState(null);
+  const [error, setError] = useState("");
+  const [draftNotes, setDraftNotes] = useState({});
+  const [sentId, setSentId] = useState(null);
+
+  useEffect(() => {
+    if (!isLoggedIn || !user?.is_admin) {
+      return;
+    }
+
+    const loadEnquiries = async () => {
+      setIsLoading(true);
+      setError("");
+      try {
+        const data = await enquiriesAPI.list({
+          status: filters.status || undefined,
+          unread_only: filters.unreadOnly || undefined,
+          search: filters.search.trim() || undefined,
+        });
+        setDashboard(data);
+      } catch (err) {
+        setError(getErrorMessage(err, "Failed to load enquiries."));
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    loadEnquiries();
+  }, [filters, isLoggedIn, user]);
+
+  const refreshEnquiries = async () => {
+    const data = await enquiriesAPI.list({
+      status: filters.status || undefined,
+      unread_only: filters.unreadOnly || undefined,
+      search: filters.search.trim() || undefined,
+    });
+    setDashboard(data);
+  };
+
+  if (!isLoggedIn) {
+    return <Navigate to="/login" replace />;
+  }
+
+  if (!user?.is_admin) {
+    return <Navigate to="/" replace />;
+  }
+
+  const handleFilterChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFilters((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const handleEnquiryUpdate = async (enquiryId, data) => {
+    setActiveId(enquiryId);
+    setError("");
+    try {
+      await enquiriesAPI.update(enquiryId, data);
+      await refreshEnquiries();
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to update enquiry."));
+    } finally {
+      setActiveId(null);
+    }
+  };
+
+  const handleSendNote = async (item) => {
+    const text = (draftNotes[item.id] || "").trim();
+    if (!text) return;
+
+    setActiveId(item.id);
+    setError("");
+    try {
+      const note = await enquiriesAPI.addNote(item.id, text);
+      setDashboard((prev) => ({
+        ...prev,
+        items: prev.items.map((it) =>
+          it.id === item.id ? { ...it, notes: [...(it.notes || []), note] } : it
+        ),
+      }));
+      setDraftNotes((prev) => ({ ...prev, [item.id]: "" }));
+      setSentId(item.id);
+      setTimeout(() => setSentId((current) => (current === item.id ? null : current)), 1800);
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to send note."));
+    } finally {
+      setActiveId(null);
+    }
+  };
+
+  return (
+    <div className="min-h-screen bg-surface">
+      <Navbar />
+      <main className="pt-24 pb-16 px-6">
+        <div className="max-w-7xl mx-auto space-y-6">
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.18em] text-faint font-semibold">Admin Workspace</p>
+              <h1 className="text-3xl font-bold tracking-tight text-ink mt-1">Enquiries</h1>
+              <p className="text-sm text-muted mt-2">Every new lead appears here for agent follow-up.</p>
+            </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 w-full lg:w-auto">
+              <div className="rounded-xl bg-white border-2 border-ink px-4 py-4 min-w-[140px]">
+                <p className="text-xs font-semibold uppercase tracking-wider text-faint">Total</p>
+                <p className="text-2xl font-bold text-ink mt-2">{dashboard.total}</p>
+              </div>
+              <div className="rounded-xl bg-white border-2 border-ink px-4 py-4 min-w-[140px]">
+                <p className="text-xs font-semibold uppercase tracking-wider text-faint">Unread</p>
+                <p className="text-2xl font-bold text-amber-600 mt-2">{dashboard.unread_count}</p>
+              </div>
+              <div className="rounded-xl bg-white border-2 border-ink px-4 py-4 min-w-[140px]">
+                <p className="text-xs font-semibold uppercase tracking-wider text-faint">New</p>
+                <p className="text-2xl font-bold text-emerald-600 mt-2">{dashboard.new_count}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white border-2 border-ink rounded-xl p-5">
+            <div className="grid lg:grid-cols-[1fr_180px_auto] gap-4 items-end">
+              <label className="block">
+                <span className="flex items-center gap-2 text-xs font-semibold text-muted mb-1.5">
+                  <FaSearch className="text-[10px]" />
+                  Search
+                </span>
+                <input
+                  type="text"
+                  name="search"
+                  value={filters.search}
+                  onChange={handleFilterChange}
+                  placeholder="Buyer name, email, phone, property..."
+                  className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white"
+                />
+              </label>
+
+              <label className="block">
+                <span className="flex items-center gap-2 text-xs font-semibold text-muted mb-1.5">
+                  <FaFilter className="text-[10px]" />
+                  Status
+                </span>
+                <select
+                  name="status"
+                  value={filters.status}
+                  onChange={handleFilterChange}
+                  className="w-full border border-line rounded-lg px-3 py-3 text-sm focus:outline-none focus:border-ink bg-white"
+                >
+                  <option value="">All statuses</option>
+                  <option value="new">New</option>
+                  <option value="read">Read</option>
+                  <option value="contacted">Contacted</option>
+                  <option value="closed">Closed</option>
+                </select>
+              </label>
+
+              <label className="flex items-center gap-3 rounded-lg border border-line px-4 py-3 text-sm font-medium text-ink-soft">
+                <input
+                  type="checkbox"
+                  name="unreadOnly"
+                  checked={filters.unreadOnly}
+                  onChange={handleFilterChange}
+                  className="h-4 w-4 accent-ink"
+                />
+                Unread only
+              </label>
+            </div>
+          </div>
+
+          {error && (
+            <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {error}
+            </div>
+          )}
+
+          {isLoading ? (
+            <div className="min-h-72 flex items-center justify-center text-muted">
+              <FaSpinner className="animate-spin text-2xl" />
+            </div>
+          ) : dashboard.items.length === 0 ? (
+            <div className="rounded-xl border-2 border-ink bg-white p-10 text-center text-muted">
+              No enquiries match the current filters.
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {dashboard.items.map((item) => (
+                <article key={item.id} className="bg-white border-2 border-ink rounded-xl p-5">
+                  <div className="flex flex-col xl:flex-row xl:items-start xl:justify-between gap-5">
+                    <div className="space-y-3 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span className="px-2.5 py-1 rounded-full bg-ink text-white text-[11px] font-semibold uppercase tracking-wider">
+                          {item.status}
+                        </span>
+                        {!item.is_read && (
+                          <span className="px-2.5 py-1 rounded-full bg-amber-100 text-amber-700 text-[11px] font-semibold uppercase tracking-wider">
+                            Unread
+                          </span>
+                        )}
+                        <span className="px-2.5 py-1 rounded-full bg-surface text-ink-soft text-[11px] font-semibold uppercase tracking-wider">
+                          {item.source.replace("_", " ")}
+                        </span>
+                      </div>
+
+                      <div>
+                        <h2 className="text-lg font-bold text-ink">{item.name}</h2>
+                        <p className="text-sm text-muted mt-1">
+                          {item.property_title || "General enquiry"}
+                          {item.property_city ? ` · ${item.property_locality ? `${item.property_locality}, ` : ""}${item.property_city}` : ""}
+                        </p>
+                      </div>
+
+                      <div className="grid sm:grid-cols-2 gap-3 text-sm text-ink-soft">
+                        <p>Email: <span className="font-medium">{item.email}</span></p>
+                        <p>Phone: <span className="font-medium">{item.phone || "Not shared"}</span></p>
+                        <p>Created: <span className="font-medium">{new Date(item.created_at).toLocaleString()}</span></p>
+                        {item.property_id && (
+                          <p>
+                            Property:{" "}
+                            <Link to={`/properties/${item.property_id}`} className="font-medium text-ink hover:underline">
+                              View listing
+                            </Link>
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="rounded-lg border border-line-soft bg-surface px-4 py-3 text-sm text-ink-soft whitespace-pre-line">
+                        {item.message}
+                      </div>
+                    </div>
+
+                    <div className="xl:w-[320px] space-y-3">
+                      <div className="grid grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          disabled={activeId === item.id}
+                          onClick={() => handleEnquiryUpdate(item.id, { status: "contacted" })}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-line px-3 py-2.5 text-sm font-semibold text-ink-soft hover:border-ink transition disabled:opacity-60"
+                        >
+                          <FaPhoneAlt className="text-xs" />
+                          Contacted
+                        </button>
+                        <button
+                          type="button"
+                          disabled={activeId === item.id}
+                          onClick={() => handleEnquiryUpdate(item.id, { status: "closed" })}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-line px-3 py-2.5 text-sm font-semibold text-ink-soft hover:border-ink transition disabled:opacity-60"
+                        >
+                          <FaCheckCircle className="text-xs" />
+                          Closed
+                        </button>
+                        <button
+                          type="button"
+                          disabled={activeId === item.id}
+                          onClick={() => handleEnquiryUpdate(item.id, { status: "read", is_read: true })}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg border border-line px-3 py-2.5 text-sm font-semibold text-ink-soft hover:border-ink transition disabled:opacity-60"
+                        >
+                          <FaEnvelopeOpenText className="text-xs" />
+                          Mark Read
+                        </button>
+                        <a
+                          href={item.phone ? `tel:${item.phone}` : `mailto:${item.email}`}
+                          className="inline-flex items-center justify-center gap-2 rounded-lg bg-ink px-3 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover transition"
+                        >
+                          {item.phone ? <FaPhoneAlt className="text-xs" /> : <FaEnvelopeOpenText className="text-xs" />}
+                          Reach Out
+                        </a>
+                      </div>
+
+                      <div>
+                        <span className="block text-xs font-semibold text-muted mb-1">Reply to buyer</span>
+                        <p className="text-[11px] text-faint mb-1.5">
+                          {item.user_id
+                            ? "Visible to the buyer on their My Enquiries page, with a notification."
+                            : "This enquiry has no linked account — the buyer can't see replies here. Use Reach Out instead."}
+                        </p>
+
+                        {item.notes && item.notes.length > 0 && (
+                          <div className="space-y-2 mb-2 max-h-40 overflow-y-auto pr-1">
+                            {item.notes.map((note) => (
+                              <div key={note.id} className="rounded-lg bg-surface border border-line-soft px-3 py-2">
+                                <p className="text-sm text-ink whitespace-pre-line">{note.text}</p>
+                                <p className="text-[11px] text-faint mt-1">
+                                  {new Date(note.created_at).toLocaleString()}
+                                </p>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {sentId === item.id && (
+                          <p className="flex items-center gap-1.5 text-emerald-600 text-xs font-semibold mb-2">
+                            <FaCheckCircle className="text-[10px]" /> Reply sent
+                          </p>
+                        )}
+
+                        <textarea
+                          rows={3}
+                          value={draftNotes[item.id] || ""}
+                          placeholder="Write a reply the buyer will see..."
+                          className="w-full border border-line rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-ink resize-none bg-white"
+                          onChange={(e) =>
+                            setDraftNotes((prev) => ({ ...prev, [item.id]: e.target.value }))
+                          }
+                        />
+                        <button
+                          type="button"
+                          disabled={activeId === item.id || !(draftNotes[item.id] || "").trim()}
+                          onClick={() => handleSendNote(item)}
+                          className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-ink px-3 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover transition disabled:opacity-60"
+                        >
+                          {activeId === item.id ? <FaSpinner className="animate-spin text-xs" /> : <FaPaperPlane className="text-xs" />}
+                          Send Reply
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+        </div>
+      </main>
+      <Footer />
+    </div>
+  );
+}

@@ -1,0 +1,216 @@
+@import "tailwindcss";
+
+@theme {
+  /* Type — Lora for headings (classic serif, but — unlike Playfair
+     Display — its numerals are drawn at full letter height, so prices
+     and stats don't shrink next to the surrounding text), Cormorant
+     Garamond italic as a script accent reserved for hero/marketing
+     flourishes, Plus Jakarta Sans for body copy. Registered as Tailwind
+     utilities: font-display / font-script / font-sans. */
+  --font-display: "Lora", "Plus Jakarta Sans", serif;
+  --font-script: "Cormorant Garamond", "Lora", serif;
+  --font-sans: "Plus Jakarta Sans", -apple-system, sans-serif;
+
+  /* Neutrals — warm premium grey scale (slightly warmer than cool-grey
+     defaults, to sit comfortably on a cream base) */
+  --color-ink: #17181c;
+  --color-ink-soft: #3d3e42;
+  --color-muted: #6b6b66;
+  --color-faint: #9b9a92;
+  --color-line: #e3ded0;
+  --color-line-soft: #efebe0;
+  --color-surface: #f7f4ea;
+
+  /* Cream — the warm ivory base, standing in for Tailwind's white/grey-50 */
+  --color-cream: #faf6ec;
+  --color-cream-soft: #f3ecd9;
+  --color-cream-deep: #ece2c6;
+
+  /* Deep bottle green — the "Rolex" accent: buttons, hovers, active states */
+  --color-accent: #0e3b2e;
+  --color-accent-hover: #175a43;
+  --color-accent-soft: #e6efe6;
+
+  /* Bright emerald — same green family, lifted for legibility on the dark
+     steel-blue navbar (the deep bottle green above is too close in value
+     to steel-blue to read as a hover state there). */
+  --color-accent-bright: #4ade95;
+
+  /* Matte steel blue — reserved for the top bar */
+  --color-steel: #3e5c76;
+  --color-steel-dark: #2c4457;
+  --color-steel-light: #5a7793;
+
+  /* Muted gold — a small warm accent for charming/illustrative details */
+  --color-gold: #c08a4e;
+  --color-gold-soft: #e0b579;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  overflow-x: hidden;
+  font-family: var(--font-sans);
+  background-color: var(--color-cream);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4 {
+  font-family: var(--font-display);
+  text-wrap: balance;
+}
+
+/* Script accent — reserved for hero/marketing headline flourishes only,
+   never for body copy or UI controls (readability). */
+.font-script {
+  font-family: var(--font-script);
+  font-style: italic;
+  font-weight: 500;
+}
+
+#root {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom Scrollbar for premium feel */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-surface);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-line);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-faint);
+}
+
+/* Steps section — monochrome shimmer/pulse, standing in for "glitter"
+   without introducing color. Each step staggers its own delay so the
+   effect ripples down the sequence instead of firing in sync. */
+@keyframes step-pulse-ring {
+  0% { box-shadow: 0 0 0 0 rgba(16, 17, 20, 0.28); }
+  70% { box-shadow: 0 0 0 12px rgba(16, 17, 20, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(16, 17, 20, 0); }
+}
+
+@keyframes step-shine {
+  0% { transform: translateX(-160%) rotate(20deg); }
+  100% { transform: translateX(160%) rotate(20deg); }
+}
+
+@keyframes step-twinkle {
+  0%, 100% { opacity: 0; transform: scale(0.4); }
+  50% { opacity: 1; transform: scale(1); }
+}
+
+.step-circle {
+  animation: step-pulse-ring 2.6s ease-out infinite;
+}
+
+.step-shine-mask {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  overflow: hidden;
+}
+
+.step-shine-mask::after {
+  content: "";
+  position: absolute;
+  top: -60%;
+  left: -30%;
+  width: 45%;
+  height: 220%;
+  background: linear-gradient(115deg, transparent, rgba(255, 255, 255, 0.95), transparent);
+  animation: step-shine 2.8s ease-in-out infinite;
+}
+
+.step-sparkle {
+  position: absolute;
+  color: var(--color-ink);
+  animation: step-twinkle 2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .step-circle,
+  .step-shine-mask::after,
+  .step-sparkle {
+    animation: none !important;
+  }
+}
+
+/* Hero family/dog illustration — gentle bob for the family, a wagging
+   tail for the dog, a small hop so it reads as "playing," and a soft
+   pulsing glow behind the sun. */
+@keyframes family-illo-bob-kf {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes family-illo-jump-kf {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-7px) rotate(-4deg); }
+}
+
+@keyframes family-illo-tail-kf {
+  0%, 100% { transform: rotate(-14deg); }
+  50% { transform: rotate(18deg); }
+}
+
+@keyframes family-illo-sun-kf {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 0.75; transform: scale(1.12); }
+}
+
+.family-illo-bob {
+  animation: family-illo-bob-kf 3.2s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+.family-illo-jump {
+  animation: family-illo-jump-kf 1.6s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+.family-illo-tail {
+  animation: family-illo-tail-kf 0.55s ease-in-out infinite;
+  transform-origin: 104px 184px;
+}
+
+.family-illo-sun-glow {
+  animation: family-illo-sun-kf 2.6s ease-in-out infinite;
+  transform-origin: center;
+}
+
+.family-illo-sparkle {
+  animation: step-twinkle 2.2s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .family-illo-bob,
+  .family-illo-jump,
+  .family-illo-tail,
+  .family-illo-sun-glow,
+  .family-illo-sparkle {
+    animation: none !important;
+  }
+}

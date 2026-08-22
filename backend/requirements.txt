@@ -1,0 +1,47 @@
+# ============================================================
+# EVA Homes — Backend Python Dependencies
+# ============================================================
+# Install all of these with:  pip install -r requirements.txt
+# ============================================================
+
+# FastAPI — the web framework we use to build our API
+fastapi==0.115.0
+
+# Uvicorn & Gunicorn — servers to run our FastAPI app in production
+uvicorn[standard]==0.30.6
+gunicorn==23.0.0
+
+# SQLAlchemy — the ORM
+sqlalchemy==2.0.35
+
+# Pydantic — data validation library
+pydantic[email]==2.9.2
+pydantic-settings==2.5.2
+
+# Passlib + bcrypt — for hashing passwords securely
+passlib==1.7.4
+bcrypt==4.0.1
+
+# Python-Jose — for JWT authentication
+python-jose[cryptography]==3.3.0
+
+# Python-multipart — needed for form data & image uploads
+python-multipart==0.0.9
+
+# Python-dotenv — loads .env config
+python-dotenv==1.0.1
+
+# AIOFILES — for async file operations
+# PostgreSQL Driver
+psycopg2-binary==2.9.9
+
+# Google Auth — verifies "Sign in with Google" ID tokens
+google-auth==2.35.0
+requests==2.32.3
+
+# Alembic — versioned database migrations (replaces the old ALTER TABLE shims)
+alembic==1.13.3
+
+# HTTPX — used to talk to Supabase Storage's REST API when STORAGE_BACKEND=supabase
+httpx==0.27.2
+

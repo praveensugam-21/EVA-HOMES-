@@ -22,6 +22,7 @@ const ProfilePage = lazy(() => import("./pages/ProfilePage"));
 
 // Buyer dashboard
 const BuyerDashboardHome = lazy(() => import("./pages/dashboard/buyer/BuyerDashboardHome"));
+const SearchPropertiesPage = lazy(() => import("./pages/dashboard/buyer/SearchPropertiesPage"));
 const SavedPropertiesPage = lazy(() => import("./pages/dashboard/buyer/SavedPropertiesPage"));
 const MyEnquiriesPage = lazy(() => import("./pages/dashboard/buyer/MyEnquiriesPage"));
 const MyVisitsPage = lazy(() => import("./pages/dashboard/buyer/MyVisitsPage"));
@@ -141,6 +142,7 @@ function App() {
 
             {/* Buyer dashboard */}
             <Route path="/dashboard/buyer" element={<RequireAuth><BuyerDashboardHome /></RequireAuth>} />
+            <Route path="/dashboard/buyer/search" element={<RequireAuth><SearchPropertiesPage /></RequireAuth>} />
             <Route path="/dashboard/buyer/saved" element={<RequireAuth><SavedPropertiesPage /></RequireAuth>} />
             <Route path="/dashboard/buyer/enquiries" element={<RequireAuth><MyEnquiriesPage /></RequireAuth>} />
             <Route path="/dashboard/buyer/visits" element={<RequireAuth><MyVisitsPage /></RequireAuth>} />

@@ -23,35 +23,32 @@ def get_cities(db: Session = Depends(get_db)):
     """
     Returns a list of cities that have at least one active property listing.
     Also includes a count of listings per city.
-    
+
     Response:
     [
         {"city": "Mumbai", "count": 42},
         {"city": "Bangalore", "count": 35},
         ...
     ]
-    
-    HOW IT WORKS (SQL equivalent):
-        SELECT city, COUNT(*) as count
-        FROM properties
-        WHERE status = 'active'
-        GROUP BY city
-        ORDER BY count DESC
-    """
 
-    # func.count() → SQL COUNT(*) aggregate function
-    # .group_by(Property.city) → GROUP BY city
-    # .order_by(func.count().desc()) → ORDER BY count DESC (most popular first)
+    Grouped by a trimmed/lowercased key rather than the raw stored string —
+    Property.city is free text a seller types on listing creation (no
+    dropdown), so "Chennai", "chennai", and "CHENNAI" are otherwise treated
+    as three different cities by SQL GROUP BY. The display value is title-
+    cased for a consistent look regardless of how any individual listing's
+    city was typed.
+    """
+    normalized_city = func.lower(func.trim(Property.city))
+
     results = (
         db.query(
-            Property.city,
-            func.count(Property.id).label("count")
+            normalized_city.label("city_key"),
+            func.count(Property.id).label("count"),
         )
         .filter(Property.status == PropertyStatus.ACTIVE)
-        .group_by(Property.city)
+        .group_by(normalized_city)
         .order_by(func.count(Property.id).desc())
         .all()
     )
 
-    # Convert to list of dicts
-    return [{"city": row.city, "count": row.count} for row in results]
+    return [{"city": row.city_key.title(), "count": row.count} for row in results]

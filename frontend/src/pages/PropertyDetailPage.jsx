@@ -5,6 +5,7 @@ import { propertiesAPI, enquiriesAPI, savedPropertiesAPI, visitsAPI, availabilit
 import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
+import { numberToWordsIndian } from "../utils/numberToWords";
 
 // Quick-reply chips for the enquiry message — one tap fills in a common
 // question instead of the buyer having to type it out from scratch.
@@ -541,6 +542,9 @@ export default function PropertyDetailPage() {
                 <p className="text-xs text-faint font-semibold uppercase tracking-wider">Listing Price</p>
                 <p className="text-3xl font-extrabold text-ink mt-1 truncate max-w-[80vw]" title={property.price_label || undefined}>
                   {property.price_label || `₹${property.price.toLocaleString()}`}
+                </p>
+                <p className="text-xs text-faint mt-1 truncate max-w-[80vw]">
+                  {numberToWordsIndian(property.price)} Rupees
                 </p>
               </div>
               {property.listing_type === "rent" && <span className="text-muted text-sm bg-surface px-3 py-1 rounded">per month</span>}

@@ -6,6 +6,15 @@ import { useAuth } from "../context/AuthContext";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 
+// Quick-reply chips for the enquiry message — one tap fills in a common
+// question instead of the buyer having to type it out from scratch.
+const QUICK_ENQUIRY_MESSAGES = [
+  { label: "I'm interested", message: "Hi, I'm interested in this property. Please share more details." },
+  { label: "Is it available?", message: "Is this property still available?" },
+  { label: "Schedule a visit", message: "Can I schedule a visit to see this property?" },
+  { label: "Best price?", message: "What's the best price you can offer on this property?" },
+];
+
 export default function PropertyDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -904,6 +913,18 @@ export default function PropertyDetailPage() {
                   ))}
                   <div>
                     <label className="text-xs font-semibold text-muted mb-1 block">Message</label>
+                    <div className="flex flex-wrap gap-1.5 mb-2">
+                      {QUICK_ENQUIRY_MESSAGES.map((q) => (
+                        <button
+                          key={q.label}
+                          type="button"
+                          onClick={() => setEnquiry((prev) => ({ ...prev, message: q.message }))}
+                          className="text-[11px] font-medium text-ink-soft border border-line rounded-full px-3 py-1 hover:border-ink hover:text-ink transition"
+                        >
+                          {q.label}
+                        </button>
+                      ))}
+                    </div>
                     <textarea name="message" id="enquiry-message" rows={3} value={enquiry.message}
                       onChange={handleEnquiryChange} required
                       placeholder="Tell us what you want to know about this property."

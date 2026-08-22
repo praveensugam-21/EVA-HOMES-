@@ -6,6 +6,7 @@ import { propertiesAPI, getErrorMessage } from "../api/api";
 import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import LocationPicker from "../components/LocationPicker";
+import { numberToWordsIndian } from "../utils/numberToWords";
 
 export default function CreateListingPage() {
   const { isLoggedIn, user } = useAuth();
@@ -547,6 +548,11 @@ export default function CreateListingPage() {
                 placeholder="e.g. 7500000"
                 className="w-full border border-line rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-ink bg-white"
               />
+              {formData.price && (
+                <p className="text-[11px] text-faint mt-1">
+                  {numberToWordsIndian(formData.price)} Rupees
+                </p>
+              )}
             </div>
 
             <div>

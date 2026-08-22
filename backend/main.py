@@ -118,6 +118,34 @@ def ensure_seller_profile_columns():
                 connection.execute(text(statement))
 
 
+def normalize_property_city_casing():
+    """
+    Property.city is free text a seller types on listing creation (no
+    dropdown) — existing rows can have inconsistent casing ("chennai" vs
+    "CHENNAI"), which used to show up as duplicate entries in the Popular
+    Cities section since SQL GROUP BY is case-sensitive (see
+    routers/cities.py). New listings are normalized at write time
+    (schemas/property.py), but this backfills rows that already existed
+    before that fix. Title-cases anything that doesn't already match —
+    idempotent, becomes a no-op once every row is normalized.
+    """
+    inspector = inspect(engine)
+    if "properties" not in inspector.get_table_names():
+        return
+
+    with engine.begin() as connection:
+        rows = connection.execute(text("SELECT id, city FROM properties")).fetchall()
+        for row_id, city in rows:
+            if not city:
+                continue
+            normalized = city.strip().title()
+            if normalized != city:
+                connection.execute(
+                    text("UPDATE properties SET city = :city WHERE id = :id"),
+                    {"city": normalized, "id": row_id},
+                )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
@@ -126,6 +154,7 @@ async def lifespan(app: FastAPI):
         ensure_user_columns()
         ensure_property_columns()
         ensure_seller_profile_columns()
+        normalize_property_city_casing()
         # Auto-seeding demo data (including a default admin account) is only
         # for local/dev convenience. In production (DEBUG=false on Render)
         # it's skipped unless explicitly opted into via SEED_DB=true, so a

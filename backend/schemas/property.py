@@ -11,7 +11,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, model_validator
+from pydantic import BaseModel, field_validator, model_validator
 
 # Import our Enum types from the model
 # We reuse the same enums for both DB and API validation
@@ -59,6 +59,15 @@ class PropertyBase(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
 
+    # Sellers type this freely (no dropdown) — normalize casing/whitespace
+    # here so "chennai", "CHENNAI", " Chennai" all end up stored as the
+    # same "Chennai", instead of GROUP BY (see routers/cities.py) treating
+    # them as different cities.
+    @field_validator("city")
+    @classmethod
+    def normalize_city(cls, value: str) -> str:
+        return value.strip().title()
+
 
 # ---- CREATE SCHEMA ----
 # Sent by the client when posting a new property
@@ -100,6 +109,11 @@ class PropertyUpdate(BaseModel):
     longitude: Optional[float] = None
     is_featured: Optional[bool] = None
     is_verified: Optional[bool] = None
+
+    @field_validator("city")
+    @classmethod
+    def normalize_city(cls, value: Optional[str]) -> Optional[str]:
+        return value.strip().title() if value else value
 
 
 # ---- FULL RESPONSE (single property detail page) ----

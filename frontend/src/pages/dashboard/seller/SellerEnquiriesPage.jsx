@@ -1,8 +1,17 @@
 import { useEffect, useState } from "react";
-import { FaCheckCircle, FaClipboardList, FaPaperPlane, FaSpinner } from "react-icons/fa";
+import { FaCheckCircle, FaClipboardList, FaPaperPlane, FaSpinner, FaWhatsapp } from "react-icons/fa";
 import DashboardLayout from "../../../layouts/DashboardLayout";
 import StatusBadge from "../../../components/dashboard/StatusBadge";
 import { enquiriesAPI, getErrorMessage } from "../../../api/api";
+
+// wa.me needs a full international number — enquiry phones are usually
+// entered as a plain 10-digit Indian number, so assume +91 when no country
+// code appears to already be present.
+function whatsAppNumber(phone) {
+  const digits = (phone || "").replace(/\D/g, "");
+  if (!digits) return "";
+  return digits.length === 10 ? `91${digits}` : digits;
+}
 
 export default function SellerEnquiriesPage() {
   const [items, setItems] = useState([]);
@@ -128,15 +137,31 @@ export default function SellerEnquiriesPage() {
                   className="w-full border border-line rounded-lg px-3 py-2.5 text-sm focus:outline-none focus:border-ink resize-none bg-white"
                   onChange={(e) => setDraftNotes((prev) => ({ ...prev, [item.id]: e.target.value }))}
                 />
-                <button
-                  type="button"
-                  disabled={activeId === item.id || !(draftNotes[item.id] || "").trim()}
-                  onClick={() => handleSendNote(item)}
-                  className="mt-2 w-full inline-flex items-center justify-center gap-2 rounded-lg bg-ink px-3 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover transition disabled:opacity-60"
-                >
-                  {activeId === item.id ? <FaSpinner className="animate-spin text-xs" /> : <FaPaperPlane className="text-xs" />}
-                  Send Reply
-                </button>
+                <div className="grid grid-cols-2 gap-2 mt-2">
+                  <button
+                    type="button"
+                    disabled={activeId === item.id || !(draftNotes[item.id] || "").trim()}
+                    onClick={() => handleSendNote(item)}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg bg-ink px-3 py-2.5 text-sm font-semibold text-white hover:bg-accent-hover transition disabled:opacity-60"
+                  >
+                    {activeId === item.id ? <FaSpinner className="animate-spin text-xs" /> : <FaPaperPlane className="text-xs" />}
+                    Send Reply
+                  </button>
+                  {item.phone && (
+                    <a
+                      href={`https://wa.me/${whatsAppNumber(item.phone)}?text=${encodeURIComponent(
+                        (draftNotes[item.id] || "").trim() ||
+                          `Hi ${item.name}, thanks for your enquiry${item.property_title ? ` about "${item.property_title}"` : ""}.`
+                      )}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-600 px-3 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 transition"
+                    >
+                      <FaWhatsapp className="text-xs" />
+                      WhatsApp
+                    </a>
+                  )}
+                </div>
               </div>
             </article>
           ))}

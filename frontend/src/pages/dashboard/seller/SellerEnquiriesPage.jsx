@@ -3,15 +3,7 @@ import { FaCheckCircle, FaClipboardList, FaPaperPlane, FaSpinner, FaWhatsapp } f
 import DashboardLayout from "../../../layouts/DashboardLayout";
 import StatusBadge from "../../../components/dashboard/StatusBadge";
 import { enquiriesAPI, getErrorMessage } from "../../../api/api";
-
-// wa.me needs a full international number — enquiry phones are usually
-// entered as a plain 10-digit Indian number, so assume +91 when no country
-// code appears to already be present.
-function whatsAppNumber(phone) {
-  const digits = (phone || "").replace(/\D/g, "");
-  if (!digits) return "";
-  return digits.length === 10 ? `91${digits}` : digits;
-}
+import { whatsAppNumber } from "../../../utils/whatsapp";
 
 export default function SellerEnquiriesPage() {
   const [items, setItems] = useState([]);

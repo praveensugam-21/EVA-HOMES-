@@ -5,21 +5,13 @@ import Navbar from "../components/Navbar";
 import Footer from "../components/Footer";
 import { enquiriesAPI, getErrorMessage } from "../api/api";
 import { useAuth } from "../context/AuthContext";
+import { whatsAppNumber } from "../utils/whatsapp";
 
 const initialFilters = {
   status: "",
   unreadOnly: false,
   search: "",
 };
-
-// wa.me needs a full international number — enquiry phones are usually
-// entered as a plain 10-digit Indian number, so assume +91 when no country
-// code appears to already be present.
-function whatsAppNumber(phone) {
-  const digits = (phone || "").replace(/\D/g, "");
-  if (!digits) return "";
-  return digits.length === 10 ? `91${digits}` : digits;
-}
 
 export default function AdminEnquiriesPage() {
   const { isLoggedIn, user } = useAuth();

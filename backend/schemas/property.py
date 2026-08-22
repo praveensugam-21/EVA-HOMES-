@@ -11,7 +11,7 @@
 from datetime import datetime
 from typing import List, Optional
 
-from pydantic import BaseModel, field_validator, model_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 # Import our Enum types from the model
 # We reuse the same enums for both DB and API validation
@@ -55,7 +55,13 @@ class PropertyBase(BaseModel):
     title: str
     description: Optional[str] = None
     price: float
-    price_label: Optional[str] = None
+    # A short display override for price ("₹85 Lakhs", "2.5 Cr", "/month"),
+    # not free-form text — the frontend shows this INSTEAD OF the numeric
+    # price when set (never both), so it must stay short. Without a cap,
+    # sellers could paste anything here (a whole sentence, or a wall of
+    # unrelated text), which either looks wrong ("twenty three thousand"
+    # instead of a real price) or breaks card layout outright.
+    price_label: Optional[str] = Field(default=None, max_length=20)
     city: str
     locality: Optional[str] = None
     address: Optional[str] = None
@@ -110,7 +116,7 @@ class PropertyUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = None
-    price_label: Optional[str] = None
+    price_label: Optional[str] = Field(default=None, max_length=20)
     city: Optional[str] = None
     locality: Optional[str] = None
     address: Optional[str] = None

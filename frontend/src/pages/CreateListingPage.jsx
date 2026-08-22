@@ -553,9 +553,12 @@ export default function CreateListingPage() {
               <label className="text-xs font-semibold text-ink-soft mb-1.5 block">Price Label (User-friendly tag)</label>
               <input
                 type="text" name="price_label" value={formData.price_label} onChange={handleTextChange}
-                placeholder="e.g. ₹75 Lakhs or ₹35k/mo"
+                placeholder="e.g. ₹75 Lakhs or ₹35k/mo" maxLength={20}
                 className="w-full border border-line rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-ink bg-white"
               />
+              <p className="text-[11px] text-faint mt-1">
+                A short tag shown instead of the price above — not the price itself. Leave blank to just show the number.
+              </p>
             </div>
 
             <div>

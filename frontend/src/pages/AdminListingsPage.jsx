@@ -319,7 +319,7 @@ export default function AdminListingsPage() {
                         <div className="grid md:grid-cols-2 gap-3 text-sm text-ink-soft">
                           <p>Type: <span className="font-medium capitalize">{item.property_type}</span></p>
                           <p>Listing: <span className="font-medium capitalize">{item.listing_type}</span></p>
-                          <p>Price: <span className="font-medium">{item.price_label || item.price.toLocaleString()}</span></p>
+                          <p className="truncate">Price: <span className="font-medium" title={item.price_label || undefined}>{item.price_label || item.price.toLocaleString()}</span></p>
                           <p>Created: <span className="font-medium">{new Date(item.created_at).toLocaleString()}</span></p>
                         </div>
 

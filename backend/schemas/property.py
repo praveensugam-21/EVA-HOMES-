@@ -55,13 +55,13 @@ class PropertyBase(BaseModel):
     title: str
     description: Optional[str] = None
     price: float
-    # A short display override for price ("₹85 Lakhs", "2.5 Cr", "/month"),
-    # not free-form text — the frontend shows this INSTEAD OF the numeric
-    # price when set (never both), so it must stay short. Without a cap,
-    # sellers could paste anything here (a whole sentence, or a wall of
-    # unrelated text), which either looks wrong ("twenty three thousand"
-    # instead of a real price) or breaks card layout outright.
-    price_label: Optional[str] = Field(default=None, max_length=20)
+    # A display override for price ("₹85 Lakhs", "2.5 Cr", or a spelled-out
+    # amount like "Seventy Five Lakh Rupees") — the frontend shows this
+    # INSTEAD OF the numeric price when set (never both). Capped at the
+    # same length as the DB column; every place it's rendered truncates
+    # with an ellipsis (full text on hover) so even the longest realistic
+    # spelled-out price never breaks card layout.
+    price_label: Optional[str] = Field(default=None, max_length=50)
     city: str
     locality: Optional[str] = None
     address: Optional[str] = None
@@ -116,7 +116,7 @@ class PropertyUpdate(BaseModel):
     title: Optional[str] = None
     description: Optional[str] = None
     price: Optional[float] = None
-    price_label: Optional[str] = Field(default=None, max_length=20)
+    price_label: Optional[str] = Field(default=None, max_length=50)
     city: Optional[str] = None
     locality: Optional[str] = None
     address: Optional[str] = None

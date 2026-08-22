@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { FaHome, FaUpload, FaSpinner, FaTimes, FaMapMarkerAlt, FaClock, FaCheckCircle, FaBath, FaCouch, FaUtensils, FaCar, FaImage, FaCamera, FaPhoneAlt } from "react-icons/fa";
 import { useAuth } from "../context/AuthContext";
@@ -63,8 +63,30 @@ export default function CreateListingPage() {
   const MAX_ROOM_PHOTOS = 10;
   const MAX_UPLOAD_BYTES = 5 * 1024 * 1024; // 5MB, matches the backend cap
 
+  // Once the seller edits Price Label themselves, stop overwriting it —
+  // only auto-fill it from the price while it still holds our own wording.
+  const priceLabelEditedRef = useRef(false);
+
   const handleTextChange = (e) => {
     const { name, value } = e.target;
+
+    if (name === "price_label") {
+      priceLabelEditedRef.current = true;
+      setFormData((prev) => ({ ...prev, price_label: value }));
+      return;
+    }
+
+    if (name === "price") {
+      setFormData((prev) => ({
+        ...prev,
+        price: value,
+        price_label: priceLabelEditedRef.current
+          ? prev.price_label
+          : (value ? `${numberToWordsIndian(value)} Rupees`.slice(0, 50) : ""),
+      }));
+      return;
+    }
+
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
@@ -548,22 +570,17 @@ export default function CreateListingPage() {
                 placeholder="e.g. 7500000"
                 className="w-full border border-line rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-ink bg-white"
               />
-              {formData.price && (
-                <p className="text-[11px] text-faint mt-1">
-                  {numberToWordsIndian(formData.price)} Rupees
-                </p>
-              )}
             </div>
 
             <div>
               <label className="text-xs font-semibold text-ink-soft mb-1.5 block">Price Label (User-friendly tag)</label>
               <input
                 type="text" name="price_label" value={formData.price_label} onChange={handleTextChange}
-                placeholder="e.g. ₹75 Lakhs or ₹35k/mo" maxLength={20}
+                placeholder="e.g. Seventy Five Lakh Rupees" maxLength={50}
                 className="w-full border border-line rounded-lg px-3.5 py-2.5 text-sm focus:outline-none focus:border-ink bg-white"
               />
               <p className="text-[11px] text-faint mt-1">
-                A short tag shown instead of the price above — not the price itself. Leave blank to just show the number.
+                Auto-filled in words from the price above — shown instead of the raw number. Edit it to use your own tag instead.
               </p>
             </div>
 

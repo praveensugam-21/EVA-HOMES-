@@ -89,7 +89,9 @@ export default function MyListingsPage() {
                   )}
                 </div>
                 <p className="text-xs text-muted mt-1">{item.city}{item.locality ? `, ${item.locality}` : ""}</p>
-                <p className="text-sm font-bold text-ink mt-1">{item.price_label || `₹${item.price.toLocaleString()}`}</p>
+                <p className="text-sm font-bold text-ink mt-1 truncate" title={item.price_label || undefined}>
+                  {item.price_label || `₹${item.price.toLocaleString()}`}
+                </p>
                 {STATUS_HINTS[item.status] && (
                   <p className="text-xs text-faint mt-1">{STATUS_HINTS[item.status]}</p>
                 )}

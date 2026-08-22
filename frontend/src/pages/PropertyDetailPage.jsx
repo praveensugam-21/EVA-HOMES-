@@ -530,7 +530,9 @@ export default function PropertyDetailPage() {
             <div className="bg-white rounded-xl p-6 border-2 border-ink flex items-center justify-between">
               <div>
                 <p className="text-xs text-faint font-semibold uppercase tracking-wider">Listing Price</p>
-                <p className="text-3xl font-extrabold text-ink mt-1">{property.price_label || `₹${property.price.toLocaleString()}`}</p>
+                <p className="text-3xl font-extrabold text-ink mt-1 truncate max-w-[80vw]" title={property.price_label || undefined}>
+                  {property.price_label || `₹${property.price.toLocaleString()}`}
+                </p>
               </div>
               {property.listing_type === "rent" && <span className="text-muted text-sm bg-surface px-3 py-1 rounded">per month</span>}
             </div>

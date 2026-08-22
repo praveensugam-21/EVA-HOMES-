@@ -65,7 +65,9 @@ export default function SavedPropertiesPage() {
                     {item.property.title}
                   </Link>
                   <p className="text-xs text-muted mt-1">{item.property.city}{item.property.locality ? `, ${item.property.locality}` : ""}</p>
-                  <p className="text-sm font-bold text-ink mt-1">{item.property.price_label || `₹${item.property.price.toLocaleString()}`}</p>
+                  <p className="text-sm font-bold text-ink mt-1 truncate" title={item.property.price_label || undefined}>
+                    {item.property.price_label || `₹${item.property.price.toLocaleString()}`}
+                  </p>
                 </div>
                 <button
                   type="button"

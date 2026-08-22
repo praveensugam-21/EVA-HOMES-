@@ -92,7 +92,7 @@ export default function Featured() {
                     )}
                   </div>
                   <div className="mt-4 pt-4 border-t border-line-soft flex items-center justify-between">
-                    <p className="text-ink font-bold text-lg font-display">
+                    <p className="text-ink font-bold text-lg font-display truncate max-w-[70%]" title={home.price_label || undefined}>
                       {home.price_label || `₹${home.price?.toLocaleString()}`}
                     </p>
                     <span className="text-[10px] font-bold uppercase tracking-wider text-muted bg-surface px-2 py-1 rounded">

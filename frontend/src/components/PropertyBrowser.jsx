@@ -41,7 +41,9 @@ function PropertyCard({ property }) {
           </div>
         </div>
         <div className="mt-4 pt-4 border-t border-line-soft flex items-center justify-between">
-          <p className="text-ink font-extrabold text-lg">{property.price_label || `₹${property.price.toLocaleString()}`}</p>
+          <p className="text-ink font-extrabold text-lg truncate max-w-[70%]" title={property.price_label || undefined}>
+            {property.price_label || `₹${property.price.toLocaleString()}`}
+          </p>
           <span className="text-[10px] font-bold uppercase tracking-wider text-faint bg-surface px-2 py-1 rounded">{property.property_type}</span>
         </div>
       </div>

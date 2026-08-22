@@ -18,6 +18,21 @@ from pydantic import BaseModel, field_validator, model_validator
 from models.property import ListingType, ParkingType, PropertyStatus, PropertyType
 
 
+def normalize_typed_text(value: str) -> str:
+    """
+    Sellers type title/locality/address freely, so these arrive as
+    "test home 1", "HOUSE", "INDIA", etc. Only intervene when the whole
+    string is ALL CAPS or all lowercase — a clear sign nobody thought
+    about casing — and leave anything already mixed-case alone. Blindly
+    title-casing every listing would mangle deliberate text like "3BHK"
+    into "3Bhk", which is worse than not touching it.
+    """
+    stripped = value.strip()
+    if stripped and (stripped == stripped.upper() or stripped == stripped.lower()):
+        return stripped.title()
+    return stripped
+
+
 # ---- IMAGE SCHEMAS ----
 
 class PropertyImageCreate(BaseModel):
@@ -62,11 +77,18 @@ class PropertyBase(BaseModel):
     # Sellers type this freely (no dropdown) — normalize casing/whitespace
     # here so "chennai", "CHENNAI", " Chennai" all end up stored as the
     # same "Chennai", instead of GROUP BY (see routers/cities.py) treating
-    # them as different cities.
+    # them as different cities. City names are short real-world proper
+    # nouns, so an unconditional .title() is safe here (unlike title/
+    # locality/address below, which can contain things like "3BHK").
     @field_validator("city")
     @classmethod
     def normalize_city(cls, value: str) -> str:
         return value.strip().title()
+
+    @field_validator("title", "locality", "address")
+    @classmethod
+    def normalize_typed_text_fields(cls, value: Optional[str]) -> Optional[str]:
+        return normalize_typed_text(value) if value else value
 
 
 # ---- CREATE SCHEMA ----
@@ -114,6 +136,11 @@ class PropertyUpdate(BaseModel):
     @classmethod
     def normalize_city(cls, value: Optional[str]) -> Optional[str]:
         return value.strip().title() if value else value
+
+    @field_validator("title", "locality", "address")
+    @classmethod
+    def normalize_typed_text_fields(cls, value: Optional[str]) -> Optional[str]:
+        return normalize_typed_text(value) if value else value
 
 
 # ---- FULL RESPONSE (single property detail page) ----

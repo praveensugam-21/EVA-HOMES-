@@ -146,6 +146,39 @@ def normalize_property_city_casing():
                 )
 
 
+def normalize_property_text_casing():
+    """
+    Same problem as normalize_property_city_casing() above, for title/
+    locality/address — existing rows can be "test home 1" or "HOUSE"/
+    "INDIA" (all-lowercase or ALL CAPS, since nothing validated this
+    before). New listings are normalized at write time
+    (schemas/property.py's normalize_typed_text), this backfills rows
+    that already existed before that fix. Idempotent.
+    """
+    inspector = inspect(engine)
+    if "properties" not in inspector.get_table_names():
+        return
+
+    from schemas.property import normalize_typed_text
+
+    with engine.begin() as connection:
+        rows = connection.execute(text("SELECT id, title, locality, address FROM properties")).fetchall()
+        for row_id, title, locality, address in rows:
+            updates = {}
+            if title and (normalized := normalize_typed_text(title)) != title:
+                updates["title"] = normalized
+            if locality and (normalized := normalize_typed_text(locality)) != locality:
+                updates["locality"] = normalized
+            if address and (normalized := normalize_typed_text(address)) != address:
+                updates["address"] = normalized
+            if updates:
+                set_clause = ", ".join(f"{col} = :{col}" for col in updates)
+                connection.execute(
+                    text(f"UPDATE properties SET {set_clause} WHERE id = :id"),
+                    {**updates, "id": row_id},
+                )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     try:
@@ -155,6 +188,7 @@ async def lifespan(app: FastAPI):
         ensure_property_columns()
         ensure_seller_profile_columns()
         normalize_property_city_casing()
+        normalize_property_text_casing()
         # Auto-seeding demo data (including a default admin account) is only
         # for local/dev convenience. In production (DEBUG=false on Render)
         # it's skipped unless explicitly opted into via SEED_DB=true, so a

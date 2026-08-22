@@ -20,7 +20,7 @@ import { useAuth } from "../../context/AuthContext";
 
 const BUYER_LINKS = [
   { label: "Dashboard", to: "/dashboard/buyer", icon: FaHome, end: true },
-  { label: "Search Properties", to: "/listings", icon: FaSearch },
+  { label: "Search Properties", to: "/dashboard/buyer/search", icon: FaSearch },
   { label: "Saved Properties", to: "/dashboard/buyer/saved", icon: FaHeart },
   { label: "My Enquiries", to: "/dashboard/buyer/enquiries", icon: FaClipboardList },
   { label: "My Visits", to: "/dashboard/buyer/visits", icon: FaCalendarCheck },
